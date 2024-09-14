@@ -22,3 +22,12 @@ If you use the **Forest Light Environmental Simulator (FLiES)** model in your wo
 
 2. Kobayashi, H., Ryu, Y., & Baldocchi, D. D. (2012). *A framework for estimating vertical profiles of canopy reflectance, light environment, and photosynthesis in discontinuous canopies*. **Agricultural and Forest Meteorology**, 150(5), 601-619.  
    [https://doi.org/10.1016/j.agrformet.2010.12.001](https://doi.org/10.1016/j.agrformet.2010.12.001)
+
+## Installation
+
+```
+git clone git@github.com:JPL-Evapotranspiration-Algorithms/FLiES.git
+cd FLiES
+mamba install pykdtree
+pip install .
+```
