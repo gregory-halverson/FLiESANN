@@ -14,23 +14,21 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "keras==2.14",
+    "geos5fp",
+    "keras==2.15",
+    "koppengeiger",
     "numpy<2",
     "pandas",
     "rasters",
-    "tensorflow==2.14"
+    "solar-apparent-time",
+    "sun-angles",
+    "tensorflow==2.15"
 ]
 
 requires-python = ">=3.11"
 
 [tool.setuptools.package-data]
 FLiES = ["*.txt", "*.h5"]
-
-[project.optional-dependencies]
-macos = [
-    "tensorflow-macos=2.14",
-    "tensorflow-metal=1.1"
-]
 
 [project.urls]
 "Homepage" = "https://github.com/JPL-Evapotranspiration-Algorithms/FLiES"
