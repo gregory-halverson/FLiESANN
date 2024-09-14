@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=60", "setuptools-scm>=8.0", "wheel"]
+
+[project]
+name = "FLiES"
+version = "0.1.0"
+description = "Forest Light Environmental Simulator Radiative Transfer Model Artificial Neural Network Implementation in Python"
+readme = "README.md"
+authors = [
+    { name = "Gregory Halverson", email = "gregory.h.halverson@jpl.nasa.gov" },
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "keras==2.14",
+    "numpy<2",
+    "pandas",
+    "rasters",
+    "tensorflow==2.14"
+]
+
+requires-python = ">=3.11"
+
+[tool.setuptools.package-data]
+FLiES = ["*.txt", "*.h5"]
+
+[project.optional-dependencies]
+macos = [
+    "tensorflow-macos=2.14",
+    "tensorflow-metal=1.1"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/JPL-Evapotranspiration-Algorithms/FLiES"
