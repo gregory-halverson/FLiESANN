@@ -2,8 +2,8 @@
 requires = ["setuptools>=60", "setuptools-scm>=8.0", "wheel"]
 
 [project]
-name = "FLiES"
-version = "0.1.0"
+name = "FLiESANN"
+version = "0.1.1"
 description = "Forest Light Environmental Simulator Radiative Transfer Model Artificial Neural Network Implementation in Python"
 readme = "README.md"
 authors = [
