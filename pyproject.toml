@@ -24,7 +24,6 @@ dependencies = [
     "solar-apparent-time",
     "sun-angles",
     "tensorflow==2.15"
-    "tensorflow==2.15"
 ]
 
 requires-python = ">=3.11"
