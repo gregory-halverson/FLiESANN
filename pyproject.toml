@@ -14,11 +14,14 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "keras==2.14",
+    "keras==2.15",
+    "koppengeiger",
     "numpy<2",
     "pandas",
     "rasters",
-    "tensorflow==2.14"
+    "sentinel-tiles",
+    "sun-angles",
+    "tensorflow==2.15"
 ]
 
 requires-python = ">=3.11"
