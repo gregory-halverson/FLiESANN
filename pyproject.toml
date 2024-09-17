@@ -2,7 +2,7 @@
 requires = ["setuptools>=60", "setuptools-scm>=8.0", "wheel"]
 
 [project]
-name = "FLiES"
+name = "FLiESANN"
 version = "1.1.0"
 description = "Forest Light Environmental Simulator Radiative Transfer Model Artificial Neural Network Implementation in Python"
 readme = "README.md"
@@ -14,13 +14,16 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
+    "geos5fp",
     "keras==2.15",
     "koppengeiger",
     "numpy<2",
     "pandas",
     "rasters",
     "sentinel-tiles",
+    "solar-apparent-time",
     "sun-angles",
+    "tensorflow==2.15"
     "tensorflow==2.15"
 ]
 
@@ -28,12 +31,6 @@ requires-python = ">=3.11"
 
 [tool.setuptools.package-data]
 FLiES = ["*.txt", "*.h5"]
-
-[project.optional-dependencies]
-macos = [
-    "tensorflow-macos=2.14",
-    "tensorflow-metal=1.1"
-]
 
 [project.urls]
 "Homepage" = "https://github.com/JPL-Evapotranspiration-Algorithms/FLiES"
