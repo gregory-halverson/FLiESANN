@@ -3,7 +3,7 @@ requires = ["setuptools>=60", "setuptools-scm>=8.0", "wheel"]
 
 [project]
 name = "FLiESANN"
-version = "1.1.0"
+version = "1.1.1"
 description = "Forest Light Environmental Simulator Radiative Transfer Model Artificial Neural Network Implementation in Python"
 readme = "README.md"
 authors = [
@@ -23,7 +23,7 @@ dependencies = [
     "sentinel-tiles",
     "solar-apparent-time",
     "sun-angles",
-    "tensorflow==2.15"
+    "tensorflow==2.15.1"
 ]
 
 requires-python = ">=3.11"
