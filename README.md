@@ -9,8 +9,8 @@ This package is an artificial neural network emulator for the Forest Light Envir
 Lead developer<br>
 NASA Jet Propulsion Laboratory 329G
 
-Hideki Kobayashi (he/him)
-FLiES algorithm inventor
+Hideki Kobayashi (he/him)<br>
+FLiES algorithm inventor<br>
 Japan Agency for Marine-Earth Science and Technology
 
 ## Installation
