@@ -1,4 +1,4 @@
-# Forest Light Environmental Simulator Radiative Transfer Model Artificial Neural Network Implementation in Python
+# Forest Light Environmental Simulator (FLiES) Radiative Transfer Model Artificial Neural Network (ANN) Implementation in Python
 
 This package is an artificial neural network emulator for the Forest Light Environmental Simulator (FLiES) model using keras and tensorflow in Python. This model is used to estimate solar radiation for the Breathing Earth Systems Simulator (BESS) model used to estimate evapotranspiration (ET) and gross primary productivity (GPP) for the ECOsystem Spaceborne Thermal Radiometer Experiment on Space Station (ECOSTRESS) and Surface Biology and Geology (SBG) thermal remote sensing missions.
 
