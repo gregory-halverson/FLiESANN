@@ -13,16 +13,6 @@ Hideki Kobayashi (he/him)
 FLiES algorithm inventor
 Japan Agency for Marine-Earth Science and Technology
 
-## Citations
-
-If you use the **Forest Light Environmental Simulator (FLiES)** model in your work, please cite the following references:
-
-1. Kobayashi, H., & Iwabuchi, H. (2008). *A coupled 1-D atmospheric and 3-D canopy radiative transfer model for canopy reflectance, light environment, and photosynthesis simulation in a heterogeneous landscape*. **Remote Sensing of Environment**, 112(1), 173-185.  
-   [https://doi.org/10.1016/j.rse.2007.04.010](https://doi.org/10.1016/j.rse.2007.04.010)
-
-2. Kobayashi, H., Ryu, Y., & Baldocchi, D. D. (2012). *A framework for estimating vertical profiles of canopy reflectance, light environment, and photosynthesis in discontinuous canopies*. **Agricultural and Forest Meteorology**, 150(5), 601-619.  
-   [https://doi.org/10.1016/j.agrformet.2010.12.001](https://doi.org/10.1016/j.agrformet.2010.12.001)
-
 ## Installation
 
 ```
@@ -31,3 +21,13 @@ cd FLiES
 mamba install pykdtree
 pip install .
 ```
+
+## References
+
+If you use the **Forest Light Environmental Simulator (FLiES)** model in your work, please cite the following references:
+
+1. Kobayashi, H., & Iwabuchi, H. (2008). *A coupled 1-D atmospheric and 3-D canopy radiative transfer model for canopy reflectance, light environment, and photosynthesis simulation in a heterogeneous landscape*. **Remote Sensing of Environment**, 112(1), 173-185.  
+   [https://doi.org/10.1016/j.rse.2007.04.010](https://doi.org/10.1016/j.rse.2007.04.010)
+
+2. Kobayashi, H., Ryu, Y., & Baldocchi, D. D. (2012). *A framework for estimating vertical profiles of canopy reflectance, light environment, and photosynthesis in discontinuous canopies*. **Agricultural and Forest Meteorology**, 150(5), 601-619.  
+   [https://doi.org/10.1016/j.agrformet.2010.12.001](https://doi.org/10.1016/j.agrformet.2010.12.001)
