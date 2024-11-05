@@ -4,7 +4,7 @@ Artificial Neural Network Implementation
 for the Breathing Earth Systems Simulator (BESS)
 """
 
-from .FLiES import *
+from .FLiESANN import *
 
 from os.path import join, abspath, dirname
 
