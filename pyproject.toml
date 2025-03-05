@@ -17,6 +17,7 @@ dependencies = [
     "geos5fp",
     "keras==2.15",
     "koppengeiger",
+    "netCDF4",
     "numpy<2",
     "pandas",
     "rasters",
@@ -27,6 +28,17 @@ dependencies = [
 ]
 
 requires-python = ">=3.10"
+
+[project.optional-dependencies]
+dev = [
+    "build",
+    "MCD12C1-2019-v006",
+    "pytest>=6.0",
+    "pytest-cov",
+    "jupyter",
+    "pytest",
+    "twine"
+]
 
 [tool.setuptools.package-data]
 FLiESANN = ["*.txt", "*.h5"]
