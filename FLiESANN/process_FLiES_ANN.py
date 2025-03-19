@@ -79,6 +79,8 @@ def process_FLiES_ANN(
     if geometry is None and isinstance(albedo, Raster):
         geometry = albedo.geometry
 
+    ## FIXME need to fetch default values for parameters: COT, AOT, vapor_gccm, ozone_cm, elevation_km, SZA, KG_climate 
+
     # Preprocess COT and determine aerosol/cloud types
     COT = np.clip(COT, 0, None)  # Ensure COT is non-negative
     COT = rt.where(COT < 0.001, 0, COT)  # Set very small COT values to 0
