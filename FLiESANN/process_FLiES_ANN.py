@@ -6,6 +6,7 @@ import rasters as rt
 from rasters import Raster, RasterGeometry
 from geos5fp import GEOS5FP
 from sun_angles import calculate_SZA_from_DOY_and_hour
+from koppengeiger import load_koppen_geiger
 
 from .constants import *
 from .determine_atype import determine_atype
@@ -93,6 +94,12 @@ def process_FLiES_ANN(
 
     if SZA is None:
         raise ValueError("solar zenith angle or geometry must be given")
+
+    if KG_climate is None and geometry is not None:
+        KG_climate = load_koppen_geiger(geometry=geometry)
+
+    if KG_climate is None:
+        raise ValueError("Koppen Geieger climate classification or geometry must be given")
 
     # Preprocess COT and determine aerosol/cloud types
     COT = np.clip(COT, 0, None)  # Ensure COT is non-negative
