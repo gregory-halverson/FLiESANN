@@ -5,6 +5,8 @@ import numpy as np
 import rasters as rt
 from rasters import Raster, RasterGeometry
 from geos5fp import GEOS5FP
+from sun_angles import calculate_SZA_from_DOY_and_hour
+from koppengeiger import load_koppen_geiger
 
 from .constants import *
 from .determine_atype import determine_atype
@@ -12,7 +14,8 @@ from .determine_ctype import determine_ctype
 from .run_FLiES_ANN_inference import run_FLiES_ANN_inference
 
 def process_FLiES_ANN(
-        doy: Union[Raster, np.ndarray],
+        day_of_year: Union[Raster, np.ndarray],
+        hour_of_day: Union[Raster, np.ndarray],
         albedo: Union[Raster, np.ndarray],
         COT: Union[Raster, np.ndarray] = None,
         AOT: Union[Raster, np.ndarray] = None,
@@ -79,6 +82,25 @@ def process_FLiES_ANN(
     if geometry is None and isinstance(albedo, Raster):
         geometry = albedo.geometry
 
+    ## FIXME need to fetch default values for parameters: COT, AOT, vapor_gccm, ozone_cm, elevation_km, SZA, KG_climate 
+
+    if SZA is None and geometry is not None:
+        SZA = calculate_SZA_from_DOY_and_hour(
+            lat=geometry.lat,
+            lon=geometry.lon,
+            DOY=day_of_year,
+            hour=hour_of_day
+        )
+
+    if SZA is None:
+        raise ValueError("solar zenith angle or geometry must be given")
+
+    if KG_climate is None and geometry is not None:
+        KG_climate = load_koppen_geiger(geometry=geometry)
+
+    if KG_climate is None:
+        raise ValueError("Koppen Geieger climate classification or geometry must be given")
+
     # Preprocess COT and determine aerosol/cloud types
     COT = np.clip(COT, 0, None)  # Ensure COT is non-negative
     COT = rt.where(COT < 0.001, 0, COT)  # Set very small COT values to 0
@@ -125,7 +147,7 @@ def process_FLiES_ANN(
     fdvis = fdvis * corr * 0.915
 
     ## Radiation components
-    dr = 1.0 + 0.033 * np.cos(2 * np.pi / 365.0 * doy)  # Earth-sun distance correction factor
+    dr = 1.0 + 0.033 * np.cos(2 * np.pi / 365.0 * day_of_year)  # Earth-sun distance correction factor
     Ra = 1333.6 * dr * np.cos(SZA * np.pi / 180.0)  # Extraterrestrial radiation
     Ra = rt.where(SZA > 90.0, 0, Ra)  # Set Ra to 0 when the sun is below the horizon
     Rg = Ra * tm  # Global radiation
