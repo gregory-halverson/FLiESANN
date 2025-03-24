@@ -3,6 +3,8 @@ from os.path import join, abspath, dirname
 DEFAULT_WORKING_DIRECTORY = "."
 DEFAULT_FLIES_INTERMEDIATE = "FLiES_intermediate"
 
+GEOS5FP_DIRECTORY = "~/data/GEOS5FP_download"
+
 DEFAULT_MODEL_FILENAME = join(abspath(dirname(__file__)), "FLiESANN.h5")
 SPLIT_ATYPES_CTYPES = True
 
