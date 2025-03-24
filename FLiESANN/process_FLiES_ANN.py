@@ -1,10 +1,11 @@
 from typing import Union
 from time import process_time
-
+from datetime import datetime
 import numpy as np
 import rasters as rt
 from rasters import Raster, RasterGeometry
 from geos5fp import GEOS5FP
+from solar_apparent_time import solar_day_of_year_for_area, solar_hour_of_day_for_area
 from sun_angles import calculate_SZA_from_DOY_and_hour
 from koppengeiger import load_koppen_geiger
 
@@ -14,8 +15,6 @@ from .determine_ctype import determine_ctype
 from .run_FLiES_ANN_inference import run_FLiES_ANN_inference
 
 def process_FLiES_ANN(
-        day_of_year: Union[Raster, np.ndarray],
-        hour_of_day: Union[Raster, np.ndarray],
         albedo: Union[Raster, np.ndarray],
         COT: Union[Raster, np.ndarray] = None,
         AOT: Union[Raster, np.ndarray] = None,
@@ -25,8 +24,11 @@ def process_FLiES_ANN(
         SZA: Union[Raster, np.ndarray] = None,
         KG_climate: Union[Raster, np.ndarray] = None,
         geometry: RasterGeometry = None,
+        time_UTC: datetime = None,
+        day_of_year: Union[Raster, np.ndarray] = None,
+        hour_of_day: Union[Raster, np.ndarray] = None,
         GEOS5FP_connection: GEOS5FP = None,
-        GEOS5FP_directory: str = None,
+        resampling: str = "cubic",
         ANN_model=None,
         model_filename=DEFAULT_MODEL_FILENAME,
         split_atypes_ctypes=SPLIT_ATYPES_CTYPES) -> dict:
@@ -82,6 +84,16 @@ def process_FLiES_ANN(
     if geometry is None and isinstance(albedo, Raster):
         geometry = albedo.geometry
 
+    if (day_of_year is None or hour_of_day is None) and time_UTC is not None and geometry is not None:
+        day_of_year = solar_day_of_year_for_area(time_UTC=time_UTC, geometry=geometry)
+        hour_of_day = solar_hour_of_day_for_area(time_UTC=time_UTC, geometry=geometry)
+
+    if time_UTC is None and day_of_year is None and hour_of_day is None:
+        raise ValueError("no time given between time_UTC, day_of_year, and hour_of_day")
+
+    if GEOS5FP_connection is None:
+        GEOS5FP_connection = GEOS5FP(working_directory=DEFAULT_WORKING_DIRECTORY, download_directory=GEOS5FP_DIRECTORY)
+
     ## FIXME need to fetch default values for parameters: COT, AOT, vapor_gccm, ozone_cm, elevation_km, SZA, KG_climate 
 
     if SZA is None and geometry is not None:
@@ -100,6 +112,34 @@ def process_FLiES_ANN(
 
     if KG_climate is None:
         raise ValueError("Koppen Geieger climate classification or geometry must be given")
+
+    if COT is None and geometry is not None and time_UTC is not None:
+        COT = GEOS5FP_connection.COT(
+            time_UTC=time_UTC,
+            geometry=geometry,
+            resampling=resampling
+        )
+    
+    if AOT is None and geometry is not None and time_UTC is not None:
+        AOT = GEOS5FP_connection.AOT(
+            time_UTC=time_UTC,
+            geometry=geometry,
+            resampling=resampling
+        )
+
+    if vapor_gccm is None and geometry is not None and time_UTC is not None:
+        vapor_gccm = GEOS5FP_connection.vapor_gccm(
+            time_UTC=time_UTC,
+            geometry=geometry,
+            resampling=resampling
+        )
+
+    if ozone_cm is None and geometry is not None and time_UTC is not None:
+        ozone_cm = GEOS5FP_connection.ozone_cm(
+            time_UTC=time_UTC,
+            geometry=geometry,
+            resampling=resampling
+        )
 
     # Preprocess COT and determine aerosol/cloud types
     COT = np.clip(COT, 0, None)  # Ensure COT is non-negative

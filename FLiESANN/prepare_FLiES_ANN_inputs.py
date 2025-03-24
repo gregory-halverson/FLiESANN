@@ -24,7 +24,7 @@ def prepare_FLiES_ANN_inputs(
     elevation_km_flat = np.array(elevation_km).flatten()
     SZA_flat = np.array(SZA).flatten()
 
-    inputs = pd.DataFrame({
+    inputs_dict = {
         "ctype": ctype_flat,
         "atype": atype_flat,
         "COT": COT_flat,
@@ -34,7 +34,22 @@ def prepare_FLiES_ANN_inputs(
         "albedo": albedo_flat,
         "elevation_km": elevation_km_flat,
         "SZA": SZA_flat
-    })
+    }
+
+    # check all values in inputs_dict are numpy arrays and throw an exception if any are not
+
+    for key, value in inputs_dict.items():
+        if not isinstance(value, np.ndarray):
+            raise TypeError(f"input {key} is not a numpy array: {type(value)}")
+
+    # check the sizes of the input arrays and throw an exception if they mis-match
+
+    input_sizes = {key: np.array(value).size for key, value in inputs_dict.items()}
+
+    if len(set(input_sizes.values())) != 1:
+        raise ValueError(f"FLiES input size mis-match: {input_sizes}")
+
+    inputs = pd.DataFrame(inputs_dict)
 
     if split_atypes_ctypes:
         inputs["ctype0"] = np.float32(inputs.ctype == 0)
