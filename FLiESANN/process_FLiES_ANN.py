@@ -8,13 +8,14 @@ from geos5fp import GEOS5FP
 from solar_apparent_time import solar_day_of_year_for_area, solar_hour_of_day_for_area
 from sun_angles import calculate_SZA_from_DOY_and_hour
 from koppengeiger import load_koppen_geiger
+from NASADEM import NASADEM, NASADEMConnection
 
 from .constants import *
 from .determine_atype import determine_atype
 from .determine_ctype import determine_ctype
 from .run_FLiES_ANN_inference import run_FLiES_ANN_inference
 
-def process_FLiES_ANN(
+def FLiESANN(
         albedo: Union[Raster, np.ndarray],
         COT: Union[Raster, np.ndarray] = None,
         AOT: Union[Raster, np.ndarray] = None,
@@ -28,6 +29,7 @@ def process_FLiES_ANN(
         day_of_year: Union[Raster, np.ndarray] = None,
         hour_of_day: Union[Raster, np.ndarray] = None,
         GEOS5FP_connection: GEOS5FP = None,
+        NASADEM_connection: NASADEMConnection = NASADEM,
         resampling: str = "cubic",
         ANN_model=None,
         model_filename=DEFAULT_MODEL_FILENAME,
@@ -141,6 +143,9 @@ def process_FLiES_ANN(
             resampling=resampling
         )
 
+    if elevation_km is None and geometry is not None:
+        elevation_km = NASADEM.elevation_km(geometry=geometry)
+
     # Preprocess COT and determine aerosol/cloud types
     COT = np.clip(COT, 0, None)  # Ensure COT is non-negative
     COT = rt.where(COT < 0.001, 0, COT)  # Set very small COT values to 0
@@ -225,3 +230,5 @@ def process_FLiES_ANN(
             results[key] = rt.Raster(results[key], geometry=geometry)
 
     return results
+
+FLiESANN = FLiESANN
