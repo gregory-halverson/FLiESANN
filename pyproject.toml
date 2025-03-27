@@ -3,7 +3,7 @@ requires = ["setuptools>=60", "setuptools-scm>=8.0", "wheel"]
 
 [project]
 name = "FLiESANN"
-version = "1.3.0"
+version = "1.4.0"
 description = "Forest Light Environmental Simulator (FLiES) Radiative Transfer Model Artificial Neural Network (ANN) Implementation in Python"
 readme = "README.md"
 authors = [
@@ -17,6 +17,8 @@ dependencies = [
     "geos5fp",
     "keras==2.15",
     "koppengeiger",
+    "MCD12C1-2019-v006",
+    "NASADEM>=1.1.1",
     "netCDF4",
     "numpy<2",
     "pandas",
@@ -32,7 +34,6 @@ requires-python = ">=3.10"
 [project.optional-dependencies]
 dev = [
     "build",
-    "MCD12C1-2019-v006",
     "pytest>=6.0",
     "pytest-cov",
     "jupyter",

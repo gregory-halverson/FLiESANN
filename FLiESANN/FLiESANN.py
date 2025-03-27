@@ -4,6 +4,6 @@ from .determine_atype import determine_atype
 from .determine_ctype import determine_ctype
 from .prepare_FLiES_ANN_inputs import prepare_FLiES_ANN_inputs
 from .run_FLiES_ANN_inference import run_FLiES_ANN_inference
-from .process_FLiES_ANN import process_FLiES_ANN
+from .process_FLiES_ANN import FLiESANN
 from .generate_FLiES_inputs_table import generate_FLiES_inputs_table
 from .process_FLiES_table import process_FLiES_table

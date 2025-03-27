@@ -1,9 +1,9 @@
 import pandas as pd
 
-from .process_FLiES_ANN import process_FLiES_ANN
+from .process_FLiES_ANN import FLiESANN
 
 def process_FLiES_table(FLiES_inputs_df: pd.DataFrame) -> pd.DataFrame:
-    FLiES_results = process_FLiES_ANN(
+    FLiES_results = FLiESANN(
         day_of_year=FLiES_inputs_df.doy,
         albedo=FLiES_inputs_df.albedo,
         COT=FLiES_inputs_df.COT,
