@@ -3,7 +3,7 @@ from dateutil import parser
 import numpy as np
 import pandas as pd
 
-from geos5fp import GEOS5FP
+from GEOS5FP import GEOS5FP
 from sentinel_tiles import sentinel_tiles
 from sun_angles import calculate_SZA_from_datetime
 from koppengeiger import load_koppen_geiger

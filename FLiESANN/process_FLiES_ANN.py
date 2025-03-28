@@ -4,7 +4,7 @@ from datetime import datetime
 import numpy as np
 import rasters as rt
 from rasters import Raster, RasterGeometry
-from geos5fp import GEOS5FP
+from GEOS5FP import GEOS5FP
 from solar_apparent_time import solar_day_of_year_for_area, solar_hour_of_day_for_area
 from sun_angles import calculate_SZA_from_DOY_and_hour
 from koppengeiger import load_koppen_geiger
