@@ -8,7 +8,7 @@ from os.path import join
 from datetime import datetime, date, time
 from dateutil import parser
 import rasters as rt
-from geos5fp import GEOS5FP
+from GEOS5FP import GEOS5FP
 from koppengeiger import load_koppen_geiger
 from solar_apparent_time import UTC_to_solar
 import sun_angles
