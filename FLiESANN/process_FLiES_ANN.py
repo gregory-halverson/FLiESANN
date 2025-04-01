@@ -94,7 +94,7 @@ def FLiESANN(
         raise ValueError("no time given between time_UTC, day_of_year, and hour_of_day")
 
     if GEOS5FP_connection is None:
-        GEOS5FP_connection = GEOS5FP(working_directory=DEFAULT_WORKING_DIRECTORY, download_directory=GEOS5FP_DIRECTORY)
+        GEOS5FP_connection = GEOS5FP()
 
     ## FIXME need to fetch default values for parameters: COT, AOT, vapor_gccm, ozone_cm, elevation_km, SZA, KG_climate 
 
