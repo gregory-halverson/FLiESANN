@@ -16,10 +16,13 @@ Japan Agency for Marine-Earth Science and Technology
 ## Installation
 
 ```
-git clone git@github.com:JPL-Evapotranspiration-Algorithms/FLiESANN.git
-cd FLiES
-mamba install pykdtree
-pip install .
+pip install FLiESANN
+```
+
+## Usage
+
+```
+from FLiESANN import FLiESANN
 ```
 
 ## References
