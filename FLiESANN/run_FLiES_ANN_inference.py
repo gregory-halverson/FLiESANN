@@ -72,15 +72,43 @@ def run_FLiES_ANN_inference(
 
     # Convert DataFrame to numpy array and reshape for the model
     inputs_array = inputs.values
-    # The model expects 3D input: (batch_size, sequence_length, features)
-    # Reshape from (batch_size, features) to (batch_size, 1, features)
-    inputs_array = inputs_array.reshape(inputs_array.shape[0], 1, inputs_array.shape[1])
+    
+    # Check what input shape the model expects and adapt accordingly
+    # Different TensorFlow/Keras versions may have different input requirements
+    try:
+        model_input_shape = ANN_model.input_shape
+        if len(model_input_shape) == 3:
+            # Model expects 3D input: (batch_size, sequence_length, features)
+            # Reshape from (batch_size, features) to (batch_size, 1, features)
+            inputs_array = inputs_array.reshape(inputs_array.shape[0], 1, inputs_array.shape[1])
+            expects_3d = True
+        elif len(model_input_shape) == 2:
+            # Model expects 2D input: (batch_size, features)
+            # Keep the original 2D shape
+            expects_3d = False
+        else:
+            # Fallback: try 2D first
+            expects_3d = False
+    except (AttributeError, TypeError):
+        # If input_shape is not available, try 2D first
+        expects_3d = False
     
     # Run inference using the ANN model
-    outputs = ANN_model.predict(inputs_array)
+    try:
+        outputs = ANN_model.predict(inputs_array)
+    except ValueError as e:
+        error_msg = str(e)
+        if not expects_3d and ("expected shape" in error_msg or "incompatible" in error_msg):
+            # Try reshaping to 3D if 2D failed
+            inputs_array = inputs.values  # Reset to original 2D shape
+            inputs_array = inputs_array.reshape(inputs_array.shape[0], 1, inputs_array.shape[1])
+            outputs = ANN_model.predict(inputs_array)
+            expects_3d = True
+        else:
+            raise e
     
-    # The model returns 3D output due to the reshaped input, squeeze out the middle dimension
-    if len(outputs.shape) == 3:
+    # Handle output dimensions based on input dimensions used
+    if expects_3d and len(outputs.shape) == 3:
         outputs = outputs.squeeze(axis=1)
     
     shape = COT.shape
