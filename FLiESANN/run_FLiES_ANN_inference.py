@@ -70,8 +70,19 @@ def run_FLiES_ANN_inference(
         split_atypes_ctypes=split_atypes_ctypes
     )
 
+    # Convert DataFrame to numpy array and reshape for the model
+    inputs_array = inputs.values
+    # The model expects 3D input: (batch_size, sequence_length, features)
+    # Reshape from (batch_size, features) to (batch_size, 1, features)
+    inputs_array = inputs_array.reshape(inputs_array.shape[0], 1, inputs_array.shape[1])
+    
     # Run inference using the ANN model
-    outputs = ANN_model.predict(inputs)
+    outputs = ANN_model.predict(inputs_array)
+    
+    # The model returns 3D output due to the reshaped input, squeeze out the middle dimension
+    if len(outputs.shape) == 3:
+        outputs = outputs.squeeze(axis=1)
+    
     shape = COT.shape
     
     # Prepare the results dictionary
