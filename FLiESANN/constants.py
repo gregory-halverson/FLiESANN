@@ -5,7 +5,8 @@ DEFAULT_FLIES_INTERMEDIATE = "FLiES_intermediate"
 
 GEOS5FP_DIRECTORY = "~/data/GEOS5FP_download"
 
-DEFAULT_MODEL_FILENAME = join(abspath(dirname(__file__)), "FLiESANN.h5")
+MODEL_FILENAME = join(abspath(dirname(__file__)), "FLiESANN.h5")
+ZERO_COT_CORRECTION = True
 SPLIT_ATYPES_CTYPES = True
 
 DEFAULT_PREVIEW_QUALITY = 20
