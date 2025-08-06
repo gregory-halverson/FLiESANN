@@ -20,7 +20,7 @@ dependencies = [
     "MCD12C1-2019-v006",
     "NASADEM>=1.1.1",
     "netCDF4",
-    "numpy<2",
+    "numpy",
     "pandas",
     "rasters",
     "sentinel-tiles",
@@ -42,7 +42,10 @@ dev = [
 ]
 
 [tool.setuptools.package-data]
-FLiESANN = ["*.txt", "*.h5"]
+FLiESANN = ["*.h5"]
+
+[tool.setuptools.packages.find]
+exclude = ["notebooks*", "references*", "examples*"]
 
 [project.urls]
 "Homepage" = "https://github.com/JPL-Evapotranspiration-Algorithms/FLiESANN"
