@@ -32,8 +32,9 @@ def FLiESANN(
         NASADEM_connection: NASADEMConnection = NASADEM,
         resampling: str = "cubic",
         ANN_model=None,
-        model_filename=DEFAULT_MODEL_FILENAME,
-        split_atypes_ctypes=SPLIT_ATYPES_CTYPES) -> dict:
+        model_filename: str = MODEL_FILENAME,
+        split_atypes_ctypes: bool = SPLIT_ATYPES_CTYPES,
+        zero_COT_correction: bool = ZERO_COT_CORRECTION) -> dict:
     """
     Processes Forest Light Environmental Simulator (FLiES) calculations using an 
     artificial neural network (ANN) emulator.
@@ -115,7 +116,9 @@ def FLiESANN(
     if KG_climate is None:
         raise ValueError("Koppen Geieger climate classification or geometry must be given")
 
-    if COT is None and geometry is not None and time_UTC is not None:
+    if zero_COT_correction:
+        COT = np.zeros(albedo.shape, dtype=np.float32)
+    elif COT is None and geometry is not None and time_UTC is not None:
         COT = GEOS5FP_connection.COT(
             time_UTC=time_UTC,
             geometry=geometry,

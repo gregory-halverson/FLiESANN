@@ -14,6 +14,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
+    "ECOv002-CMR",
     "GEOS5FP>=1.1.1",
     "keras",
     "koppengeiger",
@@ -22,7 +23,7 @@ dependencies = [
     "netCDF4",
     "numpy",
     "pandas",
-    "rasters",
+    "rasters>=1.9.0",
     "sentinel-tiles",
     "solar-apparent-time",
     "sun-angles",
