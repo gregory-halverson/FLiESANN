@@ -228,7 +228,7 @@ def FLiESANN(
     }
 
     # Convert results to Raster objects if raster geometry is given
-    if geometry is not None:
+    if isinstance(geometry, RasterGeometry):
         for key in results.keys():
             results[key] = rt.Raster(results[key], geometry=geometry)
 
