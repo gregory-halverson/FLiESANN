@@ -14,6 +14,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
+    "ECOv002-calval-tables",
     "ECOv002-CMR",
     "GEOS5FP>=1.2.3",
     "keras",
