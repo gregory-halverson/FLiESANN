@@ -15,7 +15,7 @@ classifiers = [
 ]
 dependencies = [
     "ECOv002-CMR",
-    "GEOS5FP>=1.1.1",
+    "GEOS5FP>=1.2.3",
     "keras",
     "koppengeiger",
     "MCD12C1-2019-v006",
