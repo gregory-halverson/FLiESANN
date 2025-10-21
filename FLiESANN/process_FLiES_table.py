@@ -16,7 +16,7 @@ def process_FLiES_table(FLiES_inputs_df: pd.DataFrame) -> pd.DataFrame:
     )
 
     Ra = FLiES_results["Ra"]
-    Rg = FLiES_results["Rg"]
+    SWin_Wm2 = FLiES_results["SWin_Wm2"]
     UV = FLiES_results["UV"]
     VIS = FLiES_results["VIS"]
     NIR = FLiES_results["NIR"]
@@ -34,7 +34,7 @@ def process_FLiES_table(FLiES_inputs_df: pd.DataFrame) -> pd.DataFrame:
 
     FLiES_outputs_df = FLiES_inputs_df.copy()
     FLiES_outputs_df["Ra"] = Ra
-    FLiES_outputs_df["Rg"] = Rg
+    FLiES_outputs_df["SWin_Wm2"] = SWin_Wm2
     FLiES_outputs_df["UV"] = UV
     FLiES_outputs_df["VIS"] = VIS
     FLiES_outputs_df["NIR"] = NIR
