@@ -1,14 +1,26 @@
+import logging
+
+import numpy as np
 import pandas as pd
+import rasters as rt
+from dateutil import parser
+from pandas import DataFrame
+from rasters import MultiPoint, WGS84
+from shapely.geometry import Point
 
 from .process_FLiES_ANN import FLiESANN
 
-def process_FLiES_table(FLiES_inputs_df: pd.DataFrame) -> pd.DataFrame:
+logger = logging.getLogger(__name__)
+
+def process_FLiES_table(input_df: DataFrame) -> DataFrame:
     """
     Processes a DataFrame of FLiES inputs and returns a DataFrame with FLiES outputs.
 
     Parameters:
-    FLiES_inputs_df (pd.DataFrame): A DataFrame containing the following columns:
-        - doy (int): Day of the year.
+    input_df (pd.DataFrame): A DataFrame containing the following columns:
+        - time_UTC: Time in UTC
+        - geometry or (lat, lon): Spatial coordinates
+        - doy (int): Day of the year (optional, can be derived from time_UTC).
         - albedo (float): Surface albedo.
         - COT (float): Cloud optical thickness.
         - AOT (float): Aerosol optical thickness.
@@ -16,7 +28,7 @@ def process_FLiES_table(FLiES_inputs_df: pd.DataFrame) -> pd.DataFrame:
         - ozone_cm (float): Ozone concentration in centimeters.
         - elevation_km (float): Elevation in kilometers.
         - SZA (float): Solar zenith angle in degrees.
-        - KG (str): Köppen-Geiger climate classification.
+        - KG or KG_climate (str): Köppen-Geiger climate classification.
 
     Returns:
     pd.DataFrame: A DataFrame with the same structure as the input, but with additional columns:
@@ -37,51 +49,96 @@ def process_FLiES_table(FLiES_inputs_df: pd.DataFrame) -> pd.DataFrame:
         - fdvis: Fraction of diffuse visible radiation.
         - fdnir: Fraction of diffuse near-infrared radiation.
     """
+    
+    def ensure_geometry(df):
+        if "geometry" in df:
+            if isinstance(df.geometry.iloc[0], str):
+                def parse_geom(s):
+                    s = s.strip()
+                    if s.startswith("POINT"):
+                        coords = s.replace("POINT", "").replace("(", "").replace(")", "").strip().split()
+                        return Point(float(coords[0]), float(coords[1]))
+                    elif "," in s:
+                        coords = [float(c) for c in s.split(",")]
+                        return Point(coords[0], coords[1])
+                    else:
+                        coords = [float(c) for c in s.split()]
+                        return Point(coords[0], coords[1])
+                df = df.copy()
+                df['geometry'] = df['geometry'].apply(parse_geom)
+        return df
+
+    input_df = ensure_geometry(input_df)
+
+    logger.info("started extracting geometry from FLiES input table")
+
+    if "geometry" in input_df:
+        # Convert Point objects to coordinate tuples for MultiPoint
+        if hasattr(input_df.geometry.iloc[0], "x") and hasattr(input_df.geometry.iloc[0], "y"):
+            coords = [(pt.x, pt.y) for pt in input_df.geometry]
+            geometry = MultiPoint(coords, crs=WGS84)
+        else:
+            geometry = MultiPoint(input_df.geometry, crs=WGS84)
+    elif "lat" in input_df and "lon" in input_df:
+        lat = np.array(input_df.lat).astype(np.float64)
+        lon = np.array(input_df.lon).astype(np.float64)
+        geometry = MultiPoint(x=lon, y=lat, crs=WGS84)
+    else:
+        raise KeyError("Input DataFrame must contain either 'geometry' or both 'lat' and 'lon' columns.")
+
+    logger.info("completed extracting geometry from FLiES input table")
+
+    logger.info("started extracting time from FLiES input table")
+    time_UTC = pd.to_datetime(input_df.time_UTC).tolist()
+    logger.info("completed extracting time from FLiES input table")
+
+    # Extract day of year from time_UTC if not provided
+    if "doy" in input_df:
+        doy = np.array(input_df.doy).astype(np.float64)
+    else:
+        doy = np.array([t.timetuple().tm_yday for t in time_UTC]).astype(np.float64)
+
+    # Extract required FLiES parameters
+    albedo = np.array(input_df.albedo).astype(np.float64)
+    
+    if "COT" in input_df:
+        COT = np.array(input_df.COT).astype(np.float64)
+    else:
+        COT = None
+    
+    if "AOT" in input_df:
+        AOT = np.array(input_df.AOT).astype(np.float64)
+    else:
+        AOT = None
+
+    vapor_gccm = np.array(input_df.vapor_gccm).astype(np.float64)
+    ozone_cm = np.array(input_df.ozone_cm).astype(np.float64)
+    elevation_km = np.array(input_df.elevation_km).astype(np.float64)
+    SZA = np.array(input_df.SZA).astype(np.float64)
+    
+    # Handle Köppen-Geiger climate classification
+    if "KG_climate" in input_df:
+        KG_climate = np.array(input_df.KG_climate)
+    elif "KG" in input_df:
+        KG_climate = np.array(input_df.KG)
+    else:
+        raise KeyError("Input DataFrame must contain either 'KG_climate' or 'KG' column.")
+
     FLiES_results = FLiESANN(
-        day_of_year=FLiES_inputs_df.doy,
-        albedo=FLiES_inputs_df.albedo,
-        COT=FLiES_inputs_df.COT,
-        AOT=FLiES_inputs_df.AOT,
-        vapor_gccm=FLiES_inputs_df.vapor_gccm,
-        ozone_cm=FLiES_inputs_df.ozone_cm,
-        elevation_km=FLiES_inputs_df.elevation_km,
-        SZA=FLiES_inputs_df.SZA,
-        KG_climate=FLiES_inputs_df.KG
+        day_of_year=doy,
+        albedo=albedo,
+        COT=COT,
+        AOT=AOT,
+        vapor_gccm=vapor_gccm,
+        ozone_cm=ozone_cm,
+        elevation_km=elevation_km,
+        SZA=SZA,
+        KG_climate=KG_climate
     )
 
-    SWin_TOA_Wm2 = FLiES_results["SWin_TOA_Wm2"]
-    SWin_Wm2 = FLiES_results["SWin_Wm2"]
-    UV = FLiES_results["UV"]
-    VIS = FLiES_results["VIS"]
-    NIR = FLiES_results["NIR"]
-    VISdiff = FLiES_results["VISdiff"]
-    NIRdiff = FLiES_results["NIRdiff"]
-    VISdir = FLiES_results["VISdir"]
-    NIRdir = FLiES_results["NIRdir"]
-    tm = FLiES_results["tm"]
-    puv = FLiES_results["puv"]
-    pvis = FLiES_results["pvis"]
-    pnir = FLiES_results["pnir"]
-    fduv = FLiES_results["fduv"]
-    fdvis = FLiES_results["fdvis"]
-    fdnir = FLiES_results["fdnir"]
+    output_df = input_df.copy()
 
-    FLiES_outputs_df = FLiES_inputs_df.copy()
-    FLiES_outputs_df["SWin_TOA_Wm2"] = SWin_TOA_Wm2
-    FLiES_outputs_df["SWin_Wm2"] = SWin_Wm2
-    FLiES_outputs_df["UV"] = UV
-    FLiES_outputs_df["VIS"] = VIS
-    FLiES_outputs_df["NIR"] = NIR
-    FLiES_outputs_df["VISdiff"] = VISdiff
-    FLiES_outputs_df["NIRdiff"] = NIRdiff
-    FLiES_outputs_df["VISdir"] = VISdir
-    FLiES_outputs_df["NIRdir"] = NIRdir
-    FLiES_outputs_df["tm"] = tm
-    FLiES_outputs_df["puv"] = puv
-    FLiES_outputs_df["pvis"] = pvis
-    FLiES_outputs_df["pnir"] = pnir
-    FLiES_outputs_df["fduv"] = fduv
-    FLiES_outputs_df["fdvis"] = fdvis
-    FLiES_outputs_df["fdnir"] = fdnir
+    for key, value in FLiES_results.items():
+        output_df[key] = value
 
-    return FLiES_outputs_df
+    return output_df
