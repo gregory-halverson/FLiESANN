@@ -6,6 +6,7 @@ import rasters as rt
 from rasters import Raster, RasterGeometry
 from GEOS5FP import GEOS5FP
 from solar_apparent_time import solar_day_of_year_for_area, solar_hour_of_day_for_area
+from solar_apparent_time import calculate_solar_day_of_year, calculate_solar_hour_of_day
 from sun_angles import calculate_SZA_from_DOY_and_hour
 from koppengeiger import load_koppen_geiger
 from NASADEM import NASADEM, NASADEMConnection
@@ -91,8 +92,8 @@ def FLiESANN(
         geometry = albedo.geometry
 
     if (day_of_year is None or hour_of_day is None) and time_UTC is not None and geometry is not None:
-        day_of_year = solar_day_of_year_for_area(time_UTC=time_UTC, geometry=geometry)
-        hour_of_day = solar_hour_of_day_for_area(time_UTC=time_UTC, geometry=geometry)
+        day_of_year = calculate_solar_day_of_year(time_UTC=time_UTC, geometry=geometry)
+        hour_of_day = calculate_solar_hour_of_day(time_UTC=time_UTC, geometry=geometry)
 
     if time_UTC is None and day_of_year is None and hour_of_day is None:
         raise ValueError("no time given between time_UTC, day_of_year, and hour_of_day")

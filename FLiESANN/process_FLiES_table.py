@@ -114,8 +114,12 @@ def process_FLiES_table(input_df: DataFrame) -> DataFrame:
     vapor_gccm = np.array(input_df.vapor_gccm).astype(np.float64)
     ozone_cm = np.array(input_df.ozone_cm).astype(np.float64)
     elevation_km = np.array(input_df.elevation_km).astype(np.float64)
-    SZA = np.array(input_df.SZA).astype(np.float64)
     
+    if "SZA" in input_df:
+        SZA = np.array(input_df.SZA).astype(np.float64)
+    else:
+        SZA = None
+
     # Handle Köppen-Geiger climate classification
     if "KG_climate" in input_df:
         KG_climate = np.array(input_df.KG_climate)
@@ -125,7 +129,8 @@ def process_FLiES_table(input_df: DataFrame) -> DataFrame:
         raise KeyError("Input DataFrame must contain either 'KG_climate' or 'KG' column.")
 
     FLiES_results = FLiESANN(
-        day_of_year=doy,
+        geometry=geometry,
+        time_UTC=time_UTC,
         albedo=albedo,
         COT=COT,
         AOT=AOT,
