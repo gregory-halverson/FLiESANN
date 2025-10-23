@@ -3,7 +3,7 @@ import pandas as pd
 
 from .constants import SPLIT_ATYPES_CTYPES
 
-def prepare_FLiES_ANN_inputs(
+def prepare_FLiESANN_inputs(
         atype: np.ndarray,
         ctype: np.ndarray,
         COT: np.ndarray,

@@ -1,10 +1,10 @@
 import numpy as np
 
 from .constants import *
-from .load_FLiES_model import load_FLiES_model
-from .prepare_FLiES_ANN_inputs import prepare_FLiES_ANN_inputs
+from .load_FLiESANN_model import load_FLiESANN_model
+from .prepare_FLiESANN_inputs import prepare_FLiESANN_inputs
 
-def run_FLiES_ANN_inference(
+def run_FLiESANN_inference(
         atype: np.ndarray,
         ctype: np.ndarray,
         COT: np.ndarray,
@@ -67,10 +67,10 @@ def run_FLiES_ANN_inference(
     try:
         if ANN_model is None:
             # Load the ANN model if not provided
-            ANN_model = load_FLiES_model(model_filename)
+            ANN_model = load_FLiESANN_model(model_filename)
 
         # Prepare inputs for the ANN model
-        inputs = prepare_FLiES_ANN_inputs(
+        inputs = prepare_FLiESANN_inputs(
             atype=atype,
             ctype=ctype,
             COT=COT,

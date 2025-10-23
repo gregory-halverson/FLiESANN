@@ -8,11 +8,11 @@ from pandas import DataFrame
 from rasters import MultiPoint, WGS84
 from shapely.geometry import Point
 
-from .process_FLiES_ANN import FLiESANN
+from .process_FLiESANN import FLiESANN
 
 logger = logging.getLogger(__name__)
 
-def process_FLiES_table(input_df: DataFrame) -> DataFrame:
+def process_FLiESANN_table(input_df: DataFrame) -> DataFrame:
     """
     Processes a DataFrame of FLiES inputs and returns a DataFrame with FLiES outputs.
 

@@ -14,7 +14,7 @@ from NASADEM import NASADEM, NASADEMConnection
 from .constants import *
 from .determine_atype import determine_atype
 from .determine_ctype import determine_ctype
-from .run_FLiES_ANN_inference import run_FLiES_ANN_inference
+from .run_FLiESANN_inference import run_FLiESANN_inference
 
 def FLiESANN(
         albedo: Union[Raster, np.ndarray],
@@ -161,7 +161,7 @@ def FLiESANN(
 
     # Run ANN inference to get initial radiative transfer parameters
     prediction_start_time = process_time()
-    results = run_FLiES_ANN_inference(
+    results = run_FLiESANN_inference(
         atype=atype,
         ctype=ctype,
         COT=COT,
