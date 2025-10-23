@@ -1,4 +1,5 @@
 from .constants import *
+from .colors import *
 from .load_FLiESANN_model import load_FLiESANN_model
 from .determine_atype import determine_atype
 from .determine_ctype import determine_ctype

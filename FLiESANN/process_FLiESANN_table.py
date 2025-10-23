@@ -18,36 +18,39 @@ def process_FLiESANN_table(input_df: DataFrame) -> DataFrame:
 
     Parameters:
     input_df (pd.DataFrame): A DataFrame containing the following columns:
-        - time_UTC: Time in UTC
-        - geometry or (lat, lon): Spatial coordinates
-        - doy (int): Day of the year (optional, can be derived from time_UTC).
+        - time_UTC (str or datetime): Time in UTC.
+        - geometry (str or shapely.geometry.Point) or (lat, lon): Spatial coordinates. If "geometry" is a string, it should be in WKT format (e.g., "POINT (lon lat)").
+        - doy (int, optional): Day of the year. If not provided, it will be derived from "time_UTC".
         - albedo (float): Surface albedo.
-        - COT (float): Cloud optical thickness.
-        - AOT (float): Aerosol optical thickness.
+        - COT (float, optional): Cloud optical thickness.
+        - AOT (float, optional): Aerosol optical thickness.
         - vapor_gccm (float): Water vapor in grams per cubic centimeter.
         - ozone_cm (float): Ozone concentration in centimeters.
         - elevation_km (float): Elevation in kilometers.
-        - SZA (float): Solar zenith angle in degrees.
+        - SZA (float, optional): Solar zenith angle in degrees.
         - KG or KG_climate (str): Köppen-Geiger climate classification.
 
     Returns:
     pd.DataFrame: A DataFrame with the same structure as the input, but with additional columns:
-        - SWin_Wm2: incoming shortwave radiation in watts per square meter
-        - SWin_TOA_Wm2: top-of-atmosphere incoming shortwave radiation in watts per square meter
-        - UV: Ultraviolet radiation.
-        - VIS: Visible radiation.
-        - NIR: Near-infrared radiation.
-        - VISdiff: Diffuse visible radiation.
-        - NIRdiff: Diffuse near-infrared radiation.
-        - VISdir: Direct visible radiation.
-        - NIRdir: Direct near-infrared radiation.
-        - tm: Temperature.
-        - puv: Proportion of ultraviolet radiation.
-        - pvis: Proportion of visible radiation.
-        - pnir: Proportion of near-infrared radiation.
-        - fduv: Fraction of diffuse ultraviolet radiation.
-        - fdvis: Fraction of diffuse visible radiation.
-        - fdnir: Fraction of diffuse near-infrared radiation.
+        - SWin_Wm2: Shortwave incoming solar radiation at the bottom of the atmosphere.
+        - SWin_TOA_Wm2: Shortwave incoming solar radiation at the top of the atmosphere.
+        - UV_Wm2: Ultraviolet radiation.
+        - PAR_Wm2: Photosynthetically active radiation (visible).
+        - NIR_Wm2: Near-infrared radiation.
+        - PAR_diffuse_Wm2: Diffuse visible radiation.
+        - NIR_diffuse_Wm2: Diffuse near-infrared radiation.
+        - PAR_direct_Wm2: Direct visible radiation.
+        - NIR_direct_Wm2: Direct near-infrared radiation.
+        - atmospheric_transmittance: Total atmospheric transmittance.
+        - UV_proportion: Proportion of ultraviolet radiation.
+        - PAR_proportion: Proportion of visible radiation.
+        - NIR_proportion: Proportion of near-infrared radiation.
+        - UV_diffuse_fraction: Diffuse fraction of ultraviolet radiation.
+        - PAR_diffuse_fraction: Diffuse fraction of visible radiation.
+        - NIR_diffuse_fraction: Diffuse fraction of near-infrared radiation.
+
+    Raises:
+    KeyError: If required columns ("geometry" or "lat" and "lon", "KG_climate" or "KG") are missing.
     """
     
     def ensure_geometry(df):

@@ -21,35 +21,42 @@ def run_FLiESANN_inference(
     Runs inference for an artificial neural network (ANN) emulator of the Forest Light
     Environmental Simulator (FLiES) radiative transfer model.
 
-    This function takes atmospheric parameters as input, preprocesses them, and uses a 
+    This function takes atmospheric and surface parameters as input, preprocesses them, and uses a 
     trained ANN model to predict radiative transfer outputs such as transmittance 
     and diffuse fraction.
 
     Args:
-        atype: Aerosol type (np.ndarray).
-        ctype: Cloud type (np.ndarray).
-        COT: Cloud optical thickness (np.ndarray).
-        AOT: Aerosol optical thickness (np.ndarray).
-        vapor_gccm: Water vapor in grams per square centimeter (np.ndarray).
-        ozone_cm: Ozone concentration in centimeters (np.ndarray).
-        albedo: Surface albedo (reflectivity) (np.ndarray).
-        elevation_km: Elevation in kilometers (np.ndarray).
-        SZA: Solar zenith angle (np.ndarray).
-        ANN_model: Optional pre-loaded ANN model object. If None, the model is loaded 
-                   from the specified file.
-        model_filename: Filename of the ANN model to load if ANN_model is not provided.
-        split_atypes_ctypes: Boolean flag indicating how aerosol and cloud types are 
-                             handled in input preparation.
+        atype (np.ndarray): Aerosol type.
+        ctype (np.ndarray): Cloud type.
+        COT (np.ndarray): Cloud optical thickness.
+        AOT (np.ndarray): Aerosol optical thickness.
+        vapor_gccm (np.ndarray): Water vapor in grams per square centimeter.
+        ozone_cm (np.ndarray): Ozone concentration in centimeters.
+        albedo (np.ndarray): Surface albedo (reflectivity).
+        elevation_km (np.ndarray): Elevation in kilometers.
+        SZA (np.ndarray): Solar zenith angle.
+        ANN_model (optional): Pre-loaded ANN model object. If None, the model is loaded 
+                              from the specified file.
+        model_filename (str, optional): Filename of the ANN model to load if ANN_model is not provided.
+        split_atypes_ctypes (bool, optional): Flag indicating how aerosol and cloud types are 
+                                             handled in input preparation.
 
     Returns:
         dict: A dictionary containing the predicted radiative transfer parameters:
-              - 'tm': Total transmittance (np.ndarray).
-              - 'puv': Proportion of radiation in the ultraviolet band (np.ndarray).
-              - 'pvis': Proportion of radiation in the visible band (np.ndarray).
-              - 'pnir': Proportion of radiation in the near-infrared band (np.ndarray).
-              - 'fduv': Diffuse fraction of radiation in the ultraviolet band (np.ndarray).
-              - 'fdvis': Diffuse fraction of radiation in the visible band (np.ndarray).
-              - 'fdnir': Diffuse fraction of radiation in the near-infrared band (np.ndarray).
+              - 'atmospheric_transmittance' (np.ndarray): Total transmittance.
+              - 'UV_proportion' (np.ndarray): Proportion of radiation in the ultraviolet band.
+              - 'PAR_proportion' (np.ndarray): Proportion of radiation in the visible band (Photosynthetically Active Radiation).
+              - 'NIR_proportion' (np.ndarray): Proportion of radiation in the near-infrared band.
+              - 'UV_diffuse_fraction' (np.ndarray): Diffuse fraction of radiation in the ultraviolet band.
+              - 'PAR_diffuse_fraction' (np.ndarray): Diffuse fraction of radiation in the visible band.
+              - 'NIR_diffuse_fraction' (np.ndarray): Diffuse fraction of radiation in the near-infrared band.
+
+    Raises:
+        ValueError: If the input data shapes are incompatible with the model.
+
+    Notes:
+        - The function automatically adjusts the input shape to match the model's expected input dimensions.
+        - TensorFlow warnings and logs are suppressed during model loading and inference.
     """
     
     import os
@@ -132,13 +139,13 @@ def run_FLiESANN_inference(
 
         # Prepare the results dictionary
         results = {
-            'tm': np.clip(outputs[:, 0].reshape(shape), 0, 1).astype(np.float32),  # Total transmittance
-            'puv': np.clip(outputs[:, 1].reshape(shape), 0, 1).astype(np.float32), # Proportion of UV radiation
-            'pvis': np.clip(outputs[:, 2].reshape(shape), 0, 1).astype(np.float32), # Proportion of visible radiation
-            'pnir': np.clip(outputs[:, 3].reshape(shape), 0, 1).astype(np.float32), # Proportion of NIR radiation
-            'fduv': np.clip(outputs[:, 4].reshape(shape), 0, 1).astype(np.float32), # Diffuse fraction of UV radiation
-            'fdvis': np.clip(outputs[:, 5].reshape(shape), 0, 1).astype(np.float32), # Diffuse fraction of visible radiation
-            'fdnir': np.clip(outputs[:, 6].reshape(shape), 0, 1).astype(np.float32)  # Diffuse fraction of NIR radiation
+            'atmospheric_transmittance': np.clip(outputs[:, 0].reshape(shape), 0, 1).astype(np.float32),  # Total transmittance
+            'UV_proportion': np.clip(outputs[:, 1].reshape(shape), 0, 1).astype(np.float32), # Proportion of UV radiation
+            'PAR_proportion': np.clip(outputs[:, 2].reshape(shape), 0, 1).astype(np.float32), # Proportion of visible radiation
+            'NIR_proportion': np.clip(outputs[:, 3].reshape(shape), 0, 1).astype(np.float32), # Proportion of NIR radiation
+            'UV_diffuse_fraction': np.clip(outputs[:, 4].reshape(shape), 0, 1).astype(np.float32), # Diffuse fraction of UV radiation
+            'PAR_diffuse_fraction': np.clip(outputs[:, 5].reshape(shape), 0, 1).astype(np.float32), # Diffuse fraction of visible radiation
+            'NIR_diffuse_fraction': np.clip(outputs[:, 6].reshape(shape), 0, 1).astype(np.float32)  # Diffuse fraction of NIR radiation
         }
 
         return results

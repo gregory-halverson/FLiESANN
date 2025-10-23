@@ -12,6 +12,7 @@ from koppengeiger import load_koppen_geiger
 from NASADEM import NASADEM, NASADEMConnection
 
 from .constants import *
+from .colors import *
 from .determine_atype import determine_atype
 from .determine_ctype import determine_ctype
 from .run_FLiESANN_inference import run_FLiESANN_inference
@@ -41,51 +42,53 @@ def FLiESANN(
     Processes Forest Light Environmental Simulator (FLiES) calculations using an 
     artificial neural network (ANN) emulator.
 
-    This function takes various atmospheric and environmental parameters as input,
-    including day of year, albedo, cloud optical thickness (COT), aerosol optical 
-    thickness (AOT), water vapor, ozone, elevation, solar zenith angle (SZA), and 
-    Köppen-Geiger climate classification. It uses these inputs to estimate radiative 
-    transfer components such as total transmittance, diffuse and direct radiation 
-    in different spectral bands (UV, visible, near-infrared).
+    This function estimates radiative transfer components such as total transmittance, 
+    diffuse and direct radiation in different spectral bands (UV, visible, near-infrared) 
+    based on various atmospheric and environmental parameters.
 
     Args:
-        doy: Day of year (Raster or np.ndarray).
-        albedo: Surface albedo (Raster or np.ndarray).
-        COT: Cloud optical thickness (Raster or np.ndarray).
-        AOT: Aerosol optical thickness (Raster or np.ndarray).
-        vapor_gccm: Water vapor in grams per square centimeter (Raster or np.ndarray).
-        ozone_cm: Ozone concentration in centimeters (Raster or np.ndarray).
-        elevation_km: Elevation in kilometers (Raster or np.ndarray).
-        SZA: Solar zenith angle (Raster or np.ndarray).
-        KG_climate: Köppen-Geiger climate classification (Raster or np.ndarray).
-        SWin_TOA_Wm2: Shortwave incoming solar radiation at the top of the atmosphere 
-            in W/m² (Raster or np.ndarray). If None, it is calculated internally.
-        geometry: RasterGeometry object defining the spatial extent and resolution.
-        GEOS5FP_connection: GEOS5FP object for accessing GEOS-5 FP data.
-        GEOS5FP_directory: Directory containing GEOS-5 FP data files.
-        ANN_model: Pre-loaded ANN model object. If None, it's loaded from the file.
-        model_filename: Filename of the ANN model to load.
-        split_atypes_ctypes: Boolean flag for handling aerosol and cloud types.
+        albedo (Union[Raster, np.ndarray]): Surface albedo.
+        COT (Union[Raster, np.ndarray], optional): Cloud optical thickness. Defaults to None.
+        AOT (Union[Raster, np.ndarray], optional): Aerosol optical thickness. Defaults to None.
+        vapor_gccm (Union[Raster, np.ndarray], optional): Water vapor in grams per square centimeter. Defaults to None.
+        ozone_cm (Union[Raster, np.ndarray], optional): Ozone concentration in centimeters. Defaults to None.
+        elevation_km (Union[Raster, np.ndarray], optional): Elevation in kilometers. Defaults to None.
+        SZA (Union[Raster, np.ndarray], optional): Solar zenith angle. Defaults to None.
+        KG_climate (Union[Raster, np.ndarray], optional): Köppen-Geiger climate classification. Defaults to None.
+        SWin_Wm2 (Union[Raster, np.ndarray], optional): Shortwave incoming solar radiation at the bottom of the atmosphere. Defaults to None.
+        geometry (RasterGeometry, optional): RasterGeometry object defining the spatial extent and resolution. Defaults to None.
+        time_UTC (datetime, optional): UTC time for the calculation. Defaults to None.
+        day_of_year (Union[Raster, np.ndarray], optional): Day of the year. Defaults to None.
+        hour_of_day (Union[Raster, np.ndarray], optional): Hour of the day. Defaults to None.
+        GEOS5FP_connection (GEOS5FP, optional): Connection to GEOS-5 FP data. Defaults to None.
+        NASADEM_connection (NASADEMConnection, optional): Connection to NASADEM data. Defaults to NASADEM.
+        resampling (str, optional): Resampling method for raster data. Defaults to "cubic".
+        ANN_model (optional): Pre-loaded ANN model object. Defaults to None.
+        model_filename (str, optional): Filename of the ANN model to load. Defaults to MODEL_FILENAME.
+        split_atypes_ctypes (bool, optional): Flag for handling aerosol and cloud types separately. Defaults to SPLIT_ATYPES_CTYPES.
+        zero_COT_correction (bool, optional): Flag to apply zero COT correction. Defaults to ZERO_COT_CORRECTION.
 
     Returns:
-        dict: A dictionary containing the calculated radiative transfer components 
-              as Raster objects or np.ndarrays, including:
-              - Ra: Extraterrestrial solar radiation.
-              - SWin_TOA_Wm2: Shortwave incoming solar radiation at the top of the atmosphere.
-              - UV: Ultraviolet radiation.
-              - VIS: Visible radiation.
-              - NIR: Near-infrared radiation.
-              - VISdiff: Diffuse visible radiation.
-              - NIRdiff: Diffuse near-infrared radiation.
-              - VISdir: Direct visible radiation.
-              - NIRdir: Direct near-infrared radiation.
-              - tm: Total transmittance.
-              - puv: Proportion of UV radiation.
-              - pvis: Proportion of visible radiation.
-              - pnir: Proportion of NIR radiation.
-              - fduv: Diffuse fraction of UV radiation.
-              - fdvis: Diffuse fraction of visible radiation.
-              - fdnir: Diffuse fraction of NIR radiation.
+        dict: A dictionary containing the calculated radiative transfer components as Raster objects or np.ndarrays, including:
+            - SWin_Wm2: Shortwave incoming solar radiation at the bottom of the atmosphere.
+            - SWin_TOA_Wm2: Shortwave incoming solar radiation at the top of the atmosphere.
+            - UV_Wm2: Ultraviolet radiation.
+            - PAR_Wm2: Photosynthetically active radiation (visible).
+            - NIR_Wm2: Near-infrared radiation.
+            - PAR_diffuse_Wm2: Diffuse visible radiation.
+            - NIR_diffuse_Wm2: Diffuse near-infrared radiation.
+            - PAR_direct_Wm2: Direct visible radiation.
+            - NIR_direct_Wm2: Direct near-infrared radiation.
+            - atmospheric_transmittance: Total atmospheric transmittance.
+            - UV_proportion: Proportion of UV radiation.
+            - PAR_proportion: Proportion of visible radiation.
+            - NIR_proportion: Proportion of near-infrared radiation.
+            - UV_diffuse_fraction: Diffuse fraction of UV radiation.
+            - PAR_diffuse_fraction: Diffuse fraction of visible radiation.
+            - NIR_diffuse_fraction: Diffuse fraction of near-infrared radiation.
+
+    Raises:
+        ValueError: If required time or geometry parameters are not provided.
     """
 
     if geometry is None and isinstance(albedo, Raster):
@@ -179,13 +182,13 @@ def FLiESANN(
     prediction_duration = prediction_end_time - prediction_start_time
 
     # Extract individual components from the results dictionary
-    tm = results['tm']
-    puv = results['puv']
-    pvis = results['pvis']
-    pnir = results['pnir']
-    fduv = results['fduv']
-    fdvis = results['fdvis']
-    fdnir = results['fdnir']
+    atmospheric_transmittance = results["atmospheric_transmittance"]
+    UV_proportion = results["UV_proportion"]
+    PAR_proportion = results["PAR_proportion"]
+    NIR_proportion = results["NIR_proportion"]
+    UV_diffuse_fraction = results["UV_diffuse_fraction"]
+    PAR_diffuse_fraction = results["PAR_diffuse_fraction"]
+    NIR_diffuse_fraction = results["NIR_diffuse_fraction"]
 
     ## Correction for diffuse PAR
     COT = rt.where(COT == 0.0, np.nan, COT)
@@ -196,7 +199,7 @@ def FLiESANN(
     p3 = 0.5017
     corr = np.array(p1 * x * x + p2 * x + p3)
     corr[np.logical_or(np.isnan(corr), corr > 1.0)] = 1.0
-    fdvis = fdvis * corr * 0.915
+    PAR_diffuse_fraction = PAR_diffuse_fraction * corr * 0.915
 
     ## Radiation components
     if SWin_Wm2 is None:
@@ -204,34 +207,71 @@ def FLiESANN(
         SWin_TOA_Wm2 = 1333.6 * dr * np.cos(SZA * np.pi / 180.0)  # Extraterrestrial radiation
         SWin_TOA_Wm2 = rt.where(SZA > 90.0, 0, SWin_TOA_Wm2)  # Set Ra to 0 when the sun is below the horizon
     
-    SWin_Wm2 = SWin_TOA_Wm2 * tm  # Global radiation
+    SWin_Wm2 = SWin_TOA_Wm2 * atmospheric_transmittance  # scale top-of-atmosphere shortwave radiation to bottom-of-atmosphere
 
-    UV_Wm2 = SWin_Wm2 * puv  # Ultraviolet radiation
-    visible_Wm2 = SWin_Wm2 * pvis  # Visible radiation
-    NIR_Wm2 = SWin_Wm2 * pnir  # Near-infrared radiation
-    visible_diffuse_Wm2 = visible_Wm2 * fdvis  # Diffuse visible radiation
-    NIR_diffuse_Wm2 = NIR_Wm2 * fdnir  # Diffuse near-infrared radiation
-    visible_direct_Wm2 = visible_Wm2 - visible_diffuse_Wm2  # Direct visible radiation
-    NIR_direct_Wm2 = NIR_Wm2 - NIR_diffuse_Wm2  # Direct near-infrared radiation
+    # Calculate ultraviolet radiation (UV) in W/m² by scaling the total shortwave incoming radiation (SWin_Wm2)
+    # with the proportion of UV radiation (UV_proportion). UV radiation is a small fraction of the solar spectrum.
+    UV_Wm2 = SWin_Wm2 * UV_proportion
+
+    # Calculate photosynthetically active radiation (PAR) in W/m², which represents the visible portion of the solar spectrum.
+    # This is derived by scaling the total shortwave incoming radiation (SWin_Wm2) with the proportion of visible radiation (PAR_proportion).
+    PAR_Wm2 = SWin_Wm2 * PAR_proportion
+
+    # Calculate near-infrared radiation (NIR) in W/m², which represents the portion of the solar spectrum beyond visible light.
+    # This is derived by scaling the total shortwave incoming radiation (SWin_Wm2) with the proportion of NIR radiation (NIR_proportion).
+    NIR_Wm2 = SWin_Wm2 * NIR_proportion
+
+    # Calculate diffuse visible radiation (PAR_diffuse_Wm2) in W/m² by scaling the total visible radiation (PAR_Wm2)
+    # with the diffuse fraction of visible radiation (PAR_diffuse_fraction). The np.clip function ensures the value
+    # remains within the range [0, PAR_Wm2]. Diffuse radiation is scattered sunlight that reaches the surface indirectly.
+    PAR_diffuse_Wm2 = np.clip(PAR_Wm2 * PAR_diffuse_fraction, 0, PAR_Wm2)
+
+    # Calculate diffuse near-infrared radiation (NIR_diffuse_Wm2) in W/m² by scaling the total NIR radiation (NIR_Wm2)
+    # with the diffuse fraction of NIR radiation (NIR_diffuse_fraction). The np.clip function ensures the value
+    # remains within the range [0, NIR_Wm2].
+    NIR_diffuse_Wm2 = np.clip(NIR_Wm2 * NIR_diffuse_fraction, 0, NIR_Wm2)
+
+    # Calculate direct visible radiation (PAR_direct_Wm2) in W/m² by subtracting the diffuse visible radiation (PAR_diffuse_Wm2)
+    # from the total visible radiation (PAR_Wm2). The np.clip function ensures the value remains within the range [0, PAR_Wm2].
+    # Direct radiation is sunlight that reaches the surface without being scattered.
+    PAR_direct_Wm2 = np.clip(PAR_Wm2 - PAR_diffuse_Wm2, 0, PAR_Wm2)
+
+    # Calculate direct near-infrared radiation (NIR_direct_Wm2) in W/m² by subtracting the diffuse NIR radiation (NIR_diffuse_Wm2)
+    # from the total NIR radiation (NIR_Wm2). The np.clip function ensures the value remains within the range [0, NIR_Wm2].
+    NIR_direct_Wm2 = np.clip(NIR_Wm2 - NIR_diffuse_Wm2, 0, NIR_Wm2)
+
+    if isinstance(geometry, RasterGeometry):
+        SWin_Wm2 = rt.Raster(SWin_Wm2, geometry=geometry)
+        SWin_TOA_Wm2 = rt.Raster(SWin_TOA_Wm2, geometry=geometry)
+        UV_Wm2 = rt.Raster(UV_Wm2, geometry=geometry)
+        PAR_Wm2 = rt.Raster(PAR_Wm2, geometry=geometry)
+        NIR_Wm2 = rt.Raster(NIR_Wm2, geometry=geometry)
+        PAR_diffuse_Wm2 = rt.Raster(PAR_diffuse_Wm2, geometry=geometry)
+        NIR_diffuse_Wm2 = rt.Raster(NIR_diffuse_Wm2, geometry=geometry)
+        PAR_direct_Wm2 = rt.Raster(PAR_direct_Wm2, geometry=geometry)
+        NIR_direct_Wm2 = rt.Raster(NIR_direct_Wm2, geometry=geometry)
+
+    if isinstance(UV_Wm2, Raster):
+        UV_Wm2.cmap = UV_CMAP
 
     # Store the results in a dictionary
     results = {
         "SWin_Wm2": SWin_Wm2,
         "SWin_TOA_Wm2": SWin_TOA_Wm2,
         "UV_Wm2": UV_Wm2,
-        "visible_Wm2": visible_Wm2,
+        "PAR_Wm2": PAR_Wm2,
         "NIR_Wm2": NIR_Wm2,
-        "visible_diffuse_Wm2": visible_diffuse_Wm2,
+        "PAR_diffuse_Wm2": PAR_diffuse_Wm2,
         "NIR_diffuse_Wm2": NIR_diffuse_Wm2,
-        "visible_direct_Wm2": visible_direct_Wm2,
+        "PAR_direct_Wm2": PAR_direct_Wm2,
         "NIR_direct_Wm2": NIR_direct_Wm2,
-        "tm": tm,
-        "puv": puv,
-        "pvis": pvis,
-        "pnir": pnir,
-        "fduv": fduv,
-        "fdvis": fdvis,
-        "fdnir": fdnir
+        "atmospheric_transmittance": atmospheric_transmittance,
+        "UV_proportion": UV_proportion,
+        "PAR_proportion": PAR_proportion,
+        "NIR_proportion": NIR_proportion,
+        "UV_diffuse_fraction": UV_diffuse_fraction,
+        "PAR_diffuse_fraction": PAR_diffuse_fraction,
+        "NIR_diffuse_fraction": NIR_diffuse_fraction
     }
 
     # Convert results to Raster objects if raster geometry is given
@@ -240,5 +280,3 @@ def FLiESANN(
             results[key] = rt.Raster(results[key], geometry=geometry)
 
     return results
-
-FLiESANN = FLiESANN
