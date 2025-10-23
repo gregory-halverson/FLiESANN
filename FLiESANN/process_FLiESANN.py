@@ -206,25 +206,25 @@ def FLiESANN(
     
     SWin_Wm2 = SWin_TOA_Wm2 * tm  # Global radiation
 
-    UV = SWin_Wm2 * puv  # Ultraviolet radiation
-    VIS = SWin_Wm2 * pvis  # Visible radiation
-    NIR = SWin_Wm2 * pnir  # Near-infrared radiation
-    VISdiff = VIS * fdvis  # Diffuse visible radiation
-    NIRdiff = NIR * fdnir  # Diffuse near-infrared radiation
-    VISdir = VIS - VISdiff  # Direct visible radiation
-    NIRdir = NIR - NIRdiff  # Direct near-infrared radiation
+    UV_Wm2 = SWin_Wm2 * puv  # Ultraviolet radiation
+    visible_Wm2 = SWin_Wm2 * pvis  # Visible radiation
+    NIR_Wm2 = SWin_Wm2 * pnir  # Near-infrared radiation
+    visible_diffuse_Wm2 = visible_Wm2 * fdvis  # Diffuse visible radiation
+    NIR_diffuse_Wm2 = NIR_Wm2 * fdnir  # Diffuse near-infrared radiation
+    visible_direct_Wm2 = visible_Wm2 - visible_diffuse_Wm2  # Direct visible radiation
+    NIR_direct_Wm2 = NIR_Wm2 - NIR_diffuse_Wm2  # Direct near-infrared radiation
 
     # Store the results in a dictionary
     results = {
         "SWin_Wm2": SWin_Wm2,
         "SWin_TOA_Wm2": SWin_TOA_Wm2,
-        "UV": UV,
-        "VIS": VIS,
-        "NIR": NIR,
-        "VISdiff": VISdiff,
-        "NIRdiff": NIRdiff,
-        "VISdir": VISdir,
-        "NIRdir": NIRdir,
+        "UV_Wm2": UV_Wm2,
+        "visible_Wm2": visible_Wm2,
+        "NIR_Wm2": NIR_Wm2,
+        "visible_diffuse_Wm2": visible_diffuse_Wm2,
+        "NIR_diffuse_Wm2": NIR_diffuse_Wm2,
+        "visible_direct_Wm2": visible_direct_Wm2,
+        "NIR_direct_Wm2": NIR_direct_Wm2,
         "tm": tm,
         "puv": puv,
         "pvis": pvis,
