@@ -114,10 +114,21 @@ def process_FLiESANN_table(input_df: DataFrame) -> DataFrame:
     else:
         AOT = None
 
-    vapor_gccm = np.array(input_df.vapor_gccm).astype(np.float64)
-    ozone_cm = np.array(input_df.ozone_cm).astype(np.float64)
-    elevation_km = np.array(input_df.elevation_km).astype(np.float64)
+    if "vapor_gccm" in input_df:
+        vapor_gccm = np.array(input_df.vapor_gccm).astype(np.float64)
+    else:
+        vapor_gccm = None
     
+    if "ozone_cm" in input_df:
+        ozone_cm = np.array(input_df.ozone_cm).astype(np.float64)
+    else:
+        ozone_cm = None
+
+    if "elevation_km" in input_df:
+        elevation_km = np.array(input_df.elevation_km).astype(np.float64)
+    else:
+        elevation_km = None
+
     if "SZA" in input_df:
         SZA = np.array(input_df.SZA).astype(np.float64)
     else:
@@ -129,8 +140,8 @@ def process_FLiESANN_table(input_df: DataFrame) -> DataFrame:
     elif "KG" in input_df:
         KG_climate = np.array(input_df.KG)
     else:
-        raise KeyError("Input DataFrame must contain either 'KG_climate' or 'KG' column.")
-
+        KG_climate = None
+    
     FLiES_results = FLiESANN(
         geometry=geometry,
         time_UTC=time_UTC,
