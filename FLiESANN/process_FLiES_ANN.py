@@ -6,6 +6,7 @@ import rasters as rt
 from rasters import Raster, RasterGeometry
 from GEOS5FP import GEOS5FP
 from solar_apparent_time import solar_day_of_year_for_area, solar_hour_of_day_for_area
+from solar_apparent_time import calculate_solar_day_of_year, calculate_solar_hour_of_day
 from sun_angles import calculate_SZA_from_DOY_and_hour
 from koppengeiger import load_koppen_geiger
 from NASADEM import NASADEM, NASADEMConnection
@@ -24,6 +25,7 @@ def FLiESANN(
         elevation_km: Union[Raster, np.ndarray] = None,
         SZA: Union[Raster, np.ndarray] = None,
         KG_climate: Union[Raster, np.ndarray] = None,
+        SWin_Wm2: Union[Raster, np.ndarray] = None,
         geometry: RasterGeometry = None,
         time_UTC: datetime = None,
         day_of_year: Union[Raster, np.ndarray] = None,
@@ -56,6 +58,8 @@ def FLiESANN(
         elevation_km: Elevation in kilometers (Raster or np.ndarray).
         SZA: Solar zenith angle (Raster or np.ndarray).
         KG_climate: Köppen-Geiger climate classification (Raster or np.ndarray).
+        SWin_TOA_Wm2: Shortwave incoming solar radiation at the top of the atmosphere 
+            in W/m² (Raster or np.ndarray). If None, it is calculated internally.
         geometry: RasterGeometry object defining the spatial extent and resolution.
         GEOS5FP_connection: GEOS5FP object for accessing GEOS-5 FP data.
         GEOS5FP_directory: Directory containing GEOS-5 FP data files.
@@ -67,7 +71,7 @@ def FLiESANN(
         dict: A dictionary containing the calculated radiative transfer components 
               as Raster objects or np.ndarrays, including:
               - Ra: Extraterrestrial solar radiation.
-              - Rg: Global solar radiation.
+              - SWin_TOA_Wm2: Shortwave incoming solar radiation at the top of the atmosphere.
               - UV: Ultraviolet radiation.
               - VIS: Visible radiation.
               - NIR: Near-infrared radiation.
@@ -88,8 +92,8 @@ def FLiESANN(
         geometry = albedo.geometry
 
     if (day_of_year is None or hour_of_day is None) and time_UTC is not None and geometry is not None:
-        day_of_year = solar_day_of_year_for_area(time_UTC=time_UTC, geometry=geometry)
-        hour_of_day = solar_hour_of_day_for_area(time_UTC=time_UTC, geometry=geometry)
+        day_of_year = calculate_solar_day_of_year(time_UTC=time_UTC, geometry=geometry)
+        hour_of_day = calculate_solar_hour_of_day(time_UTC=time_UTC, geometry=geometry)
 
     if time_UTC is None and day_of_year is None and hour_of_day is None:
         raise ValueError("no time given between time_UTC, day_of_year, and hour_of_day")
@@ -195,13 +199,16 @@ def FLiESANN(
     fdvis = fdvis * corr * 0.915
 
     ## Radiation components
-    dr = 1.0 + 0.033 * np.cos(2 * np.pi / 365.0 * day_of_year)  # Earth-sun distance correction factor
-    Ra = 1333.6 * dr * np.cos(SZA * np.pi / 180.0)  # Extraterrestrial radiation
-    Ra = rt.where(SZA > 90.0, 0, Ra)  # Set Ra to 0 when the sun is below the horizon
-    Rg = Ra * tm  # Global radiation
-    UV = Rg * puv  # Ultraviolet radiation
-    VIS = Rg * pvis  # Visible radiation
-    NIR = Rg * pnir  # Near-infrared radiation
+    if SWin_Wm2 is None:
+        dr = 1.0 + 0.033 * np.cos(2 * np.pi / 365.0 * day_of_year)  # Earth-sun distance correction factor
+        SWin_TOA_Wm2 = 1333.6 * dr * np.cos(SZA * np.pi / 180.0)  # Extraterrestrial radiation
+        SWin_TOA_Wm2 = rt.where(SZA > 90.0, 0, SWin_TOA_Wm2)  # Set Ra to 0 when the sun is below the horizon
+    
+    SWin_Wm2 = SWin_TOA_Wm2 * tm  # Global radiation
+
+    UV = SWin_Wm2 * puv  # Ultraviolet radiation
+    VIS = SWin_Wm2 * pvis  # Visible radiation
+    NIR = SWin_Wm2 * pnir  # Near-infrared radiation
     VISdiff = VIS * fdvis  # Diffuse visible radiation
     NIRdiff = NIR * fdnir  # Diffuse near-infrared radiation
     VISdir = VIS - VISdiff  # Direct visible radiation
@@ -209,8 +216,8 @@ def FLiESANN(
 
     # Store the results in a dictionary
     results = {
-        "Ra": Ra,
-        "Rg": Rg,
+        "SWin_Wm2": SWin_Wm2,
+        "SWin_TOA_Wm2": SWin_TOA_Wm2,
         "UV": UV,
         "VIS": VIS,
         "NIR": NIR,

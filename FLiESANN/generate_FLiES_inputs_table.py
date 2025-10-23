@@ -14,13 +14,16 @@ logger = logging.getLogger(__name__)
 
 def generate_FLiES_inputs_table(
         FLiES_inputs_from_calval_df: pd.DataFrame,
-        GEOS5FP_connection: GEOS5FP) -> pd.DataFrame:
+        GEOS5FP_connection: GEOS5FP = None) -> pd.DataFrame:
     """
     FLiES_inputs_from_claval_df:
         Pandas DataFrame containing the columns: tower, lat, lon, time_UTC, albedo, elevation_km
     return:
         Pandas DataFrame containing the columns: tower, lat, lon, time_UTC, doy, albedo, elevation_km, AOT, COT, vapor_gccm, ozone_cm, SZA, KG
     """
+    if GEOS5FP_connection is None:
+        GEOS5FP_connection = GEOS5FP()
+
     # output_rows = []
     FLiES_inputs_df = FLiES_inputs_from_calval_df.copy()
 
