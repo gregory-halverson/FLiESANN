@@ -10,6 +10,7 @@ from solar_apparent_time import calculate_solar_day_of_year, calculate_solar_hou
 from sun_angles import calculate_SZA_from_DOY_and_hour
 from koppengeiger import load_koppen_geiger
 from NASADEM import NASADEM, NASADEMConnection
+from shapely.geometry import Point
 
 from .constants import *
 from .colors import *
@@ -18,19 +19,19 @@ from .determine_ctype import determine_ctype
 from .run_FLiESANN_inference import run_FLiESANN_inference
 
 def FLiESANN(
-        albedo: Union[Raster, np.ndarray],
-        COT: Union[Raster, np.ndarray] = None,
-        AOT: Union[Raster, np.ndarray] = None,
-        vapor_gccm: Union[Raster, np.ndarray] = None,
-        ozone_cm: Union[Raster, np.ndarray] = None,
-        elevation_km: Union[Raster, np.ndarray] = None,
-        SZA: Union[Raster, np.ndarray] = None,
-        KG_climate: Union[Raster, np.ndarray] = None,
-        SWin_Wm2: Union[Raster, np.ndarray] = None,
-        geometry: RasterGeometry = None,
+        albedo: Union[Raster, np.ndarray, float],
+        COT: Union[Raster, np.ndarray, float] = None,
+        AOT: Union[Raster, np.ndarray, float] = None,
+        vapor_gccm: Union[Raster, np.ndarray, float] = None,
+        ozone_cm: Union[Raster, np.ndarray, float] = None,
+        elevation_km: Union[Raster, np.ndarray, float] = None,
+        SZA: Union[Raster, np.ndarray, float] = None,
+        KG_climate: Union[Raster, np.ndarray, int] = None,
+        SWin_Wm2: Union[Raster, np.ndarray, float] = None,
+        geometry: Union[RasterGeometry, Point] = None,
         time_UTC: datetime = None,
-        day_of_year: Union[Raster, np.ndarray] = None,
-        hour_of_day: Union[Raster, np.ndarray] = None,
+        day_of_year: Union[Raster, np.ndarray, float] = None,
+        hour_of_day: Union[Raster, np.ndarray, float] = None,
         GEOS5FP_connection: GEOS5FP = None,
         NASADEM_connection: NASADEMConnection = NASADEM,
         resampling: str = "cubic",
@@ -91,6 +92,15 @@ def FLiESANN(
         ValueError: If required time or geometry parameters are not provided.
     """
 
+    def ensure_array(value, shape=None):
+        """Ensure the input is an array, converting scalar values if necessary."""
+        if isinstance(value, (int, float)):
+            return np.full(shape, value, dtype=np.float32) if shape else np.array(value, dtype=np.float32)
+        return value
+
+    if geometry is not None and not isinstance(geometry, RasterGeometry) and not isinstance(geometry, (Point, rt.Point)):
+        raise TypeError(f"geometry must be a RasterGeometry, Point, or None, not {type(geometry)}")
+
     if geometry is None and isinstance(albedo, Raster):
         geometry = albedo.geometry
 
@@ -105,6 +115,20 @@ def FLiESANN(
         GEOS5FP_connection = GEOS5FP()
 
     ## FIXME need to fetch default values for parameters: COT, AOT, vapor_gccm, ozone_cm, elevation_km, SZA, KG_climate 
+
+    shape = geometry.shape if geometry else None
+
+    albedo = ensure_array(albedo, shape)
+    COT = ensure_array(COT, shape)
+    AOT = ensure_array(AOT, shape)
+    vapor_gccm = ensure_array(vapor_gccm, shape)
+    ozone_cm = ensure_array(ozone_cm, shape)
+    elevation_km = ensure_array(elevation_km, shape)
+    SZA = ensure_array(SZA, shape)
+    KG_climate = ensure_array(KG_climate, shape) if not isinstance(KG_climate, int) else KG_climate
+    SWin_Wm2 = ensure_array(SWin_Wm2, shape)
+    day_of_year = ensure_array(day_of_year, shape)
+    hour_of_day = ensure_array(hour_of_day, shape)
 
     if SZA is None and geometry is not None:
         SZA = calculate_SZA_from_DOY_and_hour(

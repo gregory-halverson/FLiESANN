@@ -52,112 +52,63 @@ def process_FLiESANN_table(input_df: DataFrame) -> DataFrame:
     Raises:
     KeyError: If required columns ("geometry" or "lat" and "lon", "KG_climate" or "KG") are missing.
     """
-    
-    def ensure_geometry(df):
-        if "geometry" in df:
-            if isinstance(df.geometry.iloc[0], str):
-                def parse_geom(s):
-                    s = s.strip()
-                    if s.startswith("POINT"):
-                        coords = s.replace("POINT", "").replace("(", "").replace(")", "").strip().split()
-                        return Point(float(coords[0]), float(coords[1]))
-                    elif "," in s:
-                        coords = [float(c) for c in s.split(",")]
-                        return Point(coords[0], coords[1])
-                    else:
-                        coords = [float(c) for c in s.split()]
-                        return Point(coords[0], coords[1])
-                df = df.copy()
-                df['geometry'] = df['geometry'].apply(parse_geom)
-        return df
 
-    input_df = ensure_geometry(input_df)
+    def ensure_geometry(row):
+        if "geometry" in row:
+            if isinstance(row.geometry, str):
+                s = row.geometry.strip()
+                if s.startswith("POINT"):
+                    coords = s.replace("POINT", "").replace("(", "").replace(")", "").strip().split()
+                    return Point(float(coords[0]), float(coords[1]))
+                elif "," in s:
+                    coords = [float(c) for c in s.split(",")]
+                    return Point(coords[0], coords[1])
+                else:
+                    coords = [float(c) for c in s.split()]
+                    return Point(coords[0], coords[1])
+        return row.geometry
 
-    logger.info("started extracting geometry from FLiES input table")
+    logger.info("started processing FLiES input table")
 
-    if "geometry" in input_df:
-        # Convert Point objects to coordinate tuples for MultiPoint
-        if hasattr(input_df.geometry.iloc[0], "x") and hasattr(input_df.geometry.iloc[0], "y"):
-            coords = [(pt.x, pt.y) for pt in input_df.geometry]
-            geometry = MultiPoint(coords, crs=WGS84)
-        else:
-            geometry = MultiPoint(input_df.geometry, crs=WGS84)
-    elif "lat" in input_df and "lon" in input_df:
-        lat = np.array(input_df.lat).astype(np.float64)
-        lon = np.array(input_df.lon).astype(np.float64)
-        geometry = MultiPoint(x=lon, y=lat, crs=WGS84)
-    else:
-        raise KeyError("Input DataFrame must contain either 'geometry' or both 'lat' and 'lon' columns.")
+    # Ensure geometry column is properly formatted
+    input_df = input_df.copy()
+    input_df["geometry"] = input_df.apply(ensure_geometry, axis=1)
 
-    logger.info("completed extracting geometry from FLiES input table")
-
-    logger.info("started extracting time from FLiES input table")
-    time_UTC = pd.to_datetime(input_df.time_UTC).tolist()
-    logger.info("completed extracting time from FLiES input table")
-
-    # Extract day of year from time_UTC if not provided
-    if "doy" in input_df:
-        doy = np.array(input_df.doy).astype(np.float64)
-    else:
-        doy = np.array([t.timetuple().tm_yday for t in time_UTC]).astype(np.float64)
-
-    # Extract required FLiES parameters
-    albedo = np.array(input_df.albedo).astype(np.float64)
-    
-    if "COT" in input_df:
-        COT = np.array(input_df.COT).astype(np.float64)
-    else:
-        COT = None
-    
-    if "AOT" in input_df:
-        AOT = np.array(input_df.AOT).astype(np.float64)
-    else:
-        AOT = None
-
-    if "vapor_gccm" in input_df:
-        vapor_gccm = np.array(input_df.vapor_gccm).astype(np.float64)
-    else:
-        vapor_gccm = None
-    
-    if "ozone_cm" in input_df:
-        ozone_cm = np.array(input_df.ozone_cm).astype(np.float64)
-    else:
-        ozone_cm = None
-
-    if "elevation_km" in input_df:
-        elevation_km = np.array(input_df.elevation_km).astype(np.float64)
-    else:
-        elevation_km = None
-
-    if "SZA" in input_df:
-        SZA = np.array(input_df.SZA).astype(np.float64)
-    else:
-        SZA = None
-
-    # Handle Köppen-Geiger climate classification
-    if "KG_climate" in input_df:
-        KG_climate = np.array(input_df.KG_climate)
-    elif "KG" in input_df:
-        KG_climate = np.array(input_df.KG)
-    else:
-        KG_climate = None
-    
-    FLiES_results = FLiESANN(
-        geometry=geometry,
-        time_UTC=time_UTC,
-        albedo=albedo,
-        COT=COT,
-        AOT=AOT,
-        vapor_gccm=vapor_gccm,
-        ozone_cm=ozone_cm,
-        elevation_km=elevation_km,
-        SZA=SZA,
-        KG_climate=KG_climate
-    )
-
+    # Prepare output DataFrame
     output_df = input_df.copy()
 
-    for key, value in FLiES_results.items():
-        output_df[key] = value
+    # Iterate over rows and process each individually
+    results = []
+    for _, row in input_df.iterrows():
+        if "geometry" in row:
+            geometry = rt.Point((row.geometry.x, row.geometry.y), crs=WGS84)
+        elif "lat" in row and "lon" in row:
+            geometry = rt.Point((row.lon, row.lat), crs=WGS84)
+        else:
+            raise KeyError("Input DataFrame must contain either 'geometry' or both 'lat' and 'lon' columns.")
+
+        time_UTC = pd.to_datetime(row.time_UTC)
+        doy = row.doy if "doy" in row else time_UTC.timetuple().tm_yday
+
+        FLiES_results = FLiESANN(
+            geometry=geometry,
+            time_UTC=[time_UTC],
+            albedo=row.albedo,
+            COT=row.get("COT"),
+            AOT=row.get("AOT"),
+            vapor_gccm=row.get("vapor_gccm"),
+            ozone_cm=row.get("ozone_cm"),
+            elevation_km=row.get("elevation_km"),
+            SZA=row.get("SZA"),
+            KG_climate=row.get("KG_climate", row.get("KG"))
+        )
+
+        results.append(FLiES_results)
+
+    # Combine results into the output DataFrame
+    for key in results[0].keys():
+        output_df[key] = [result[key] for result in results]
+
+    logger.info("completed processing FLiES input table")
 
     return output_df
