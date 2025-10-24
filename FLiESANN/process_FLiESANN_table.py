@@ -7,12 +7,16 @@ from dateutil import parser
 from pandas import DataFrame
 from rasters import MultiPoint, WGS84
 from shapely.geometry import Point
-
+from GEOS5FP import GEOS5FP
+from NASADEM import NASADEMConnection
 from .process_FLiESANN import FLiESANN
 
 logger = logging.getLogger(__name__)
 
-def process_FLiESANN_table(input_df: DataFrame) -> DataFrame:
+def process_FLiESANN_table(
+        input_df: DataFrame,
+        GEOS5FP_connection: GEOS5FP = None,
+        NASADEM_connection: NASADEMConnection = None) -> DataFrame:
     """
     Processes a DataFrame of FLiES inputs and returns a DataFrame with FLiES outputs.
 
@@ -102,7 +106,9 @@ def process_FLiESANN_table(input_df: DataFrame) -> DataFrame:
             ozone_cm=row.get("ozone_cm"),
             elevation_km=row.get("elevation_km"),
             SZA=row.get("SZA"),
-            KG_climate=row.get("KG_climate", row.get("KG"))
+            KG_climate=row.get("KG_climate", row.get("KG")),
+            GEOS5FP_connection=GEOS5FP_connection,
+            NASADEM_connection=NASADEM_connection
         )
 
         results.append(FLiES_results)
