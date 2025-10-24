@@ -90,9 +90,11 @@ def process_FLiESANN_table(input_df: DataFrame) -> DataFrame:
         time_UTC = pd.to_datetime(row.time_UTC)
         doy = row.doy if "doy" in row else time_UTC.timetuple().tm_yday
 
+        logger.info(f"processing row with time_UTC: {time_UTC}, geometry: {geometry}")
+
         FLiES_results = FLiESANN(
             geometry=geometry,
-            time_UTC=[time_UTC],
+            time_UTC=time_UTC,
             albedo=row.albedo,
             COT=row.get("COT"),
             AOT=row.get("AOT"),

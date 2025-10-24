@@ -116,7 +116,7 @@ def FLiESANN(
 
     ## FIXME need to fetch default values for parameters: COT, AOT, vapor_gccm, ozone_cm, elevation_km, SZA, KG_climate 
 
-    shape = geometry.shape if geometry else None
+    shape = geometry.shape if isinstance(geometry, (Raster, np.ndarray)) else None
 
     albedo = ensure_array(albedo, shape)
     COT = ensure_array(COT, shape)
@@ -178,6 +178,8 @@ def FLiESANN(
         )
 
     if elevation_km is None and geometry is not None:
+        print(type(geometry))
+        print(geometry)
         elevation_km = NASADEM.elevation_km(geometry=geometry)
 
     # Preprocess COT and determine aerosol/cloud types

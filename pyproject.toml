@@ -16,7 +16,7 @@ classifiers = [
 dependencies = [
     "ECOv002-calval-tables",
     "ECOv002-CMR",
-    "GEOS5FP>=1.2.3",
+    "GEOS5FP>=1.2.4",
     "keras",
     "koppengeiger",
     "MCD12C1-2019-v006",
@@ -24,7 +24,7 @@ dependencies = [
     "netCDF4",
     "numpy",
     "pandas",
-    "rasters>=1.9.0",
+    "rasters>=1.13.1",
     "sentinel-tiles",
     "solar-apparent-time",
     "sun-angles",
