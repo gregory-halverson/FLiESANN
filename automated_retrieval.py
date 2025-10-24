@@ -37,7 +37,7 @@ single_day_df
 
 # %%
 results_df = process_FLiESANN_table(single_day_df)
-results_df
+print(results_df)
 
 # %%
 
