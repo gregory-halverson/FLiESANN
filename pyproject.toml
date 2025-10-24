@@ -20,7 +20,7 @@ dependencies = [
     "keras",
     "koppengeiger",
     "MCD12C1-2019-v006",
-    "NASADEM>=1.1.1",
+    "NASADEM>=1.4.0",
     "netCDF4",
     "numpy",
     "pandas",

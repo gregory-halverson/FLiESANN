@@ -1,6 +1,7 @@
 # %%
 import pandas as pd
-
+from GEOS5FP import GEOS5FP
+from NASADEM import NASADEMConnection
 from ECOv002_calval_tables import load_calval_table
 
 from FLiESANN import process_FLiESANN_table
@@ -36,7 +37,16 @@ single_day_df = calval_df[calval_df['date_UTC'] == pd.to_datetime(most_observed_
 single_day_df
 
 # %%
-results_df = process_FLiESANN_table(single_day_df)
+
+GEOS5FP_connection = GEOS5FP(download_directory="GEOS5FP_download")
+NASADEM_connection = NASADEMConnection(download_directory="NASADEM_download")
+
+results_df = process_FLiESANN_table(
+    single_day_df,
+    GEOS5FP_connection=GEOS5FP_connection,
+    NASADEM_connection=NASADEM_connection       
+)
+
 print(results_df)
 
 # %%
