@@ -33,21 +33,22 @@ most_observed_date_str = most_observed_date.strftime('%Y-%m-%d')
 most_observed_date_str
 
 # %%
-single_day_df = calval_df[calval_df['date_UTC'] == pd.to_datetime(most_observed_date_str).date()]
-single_day_df
-
-# %%
+# Remove the filtering step for a single day
+# Pass the entire dataset to the process_FLiESANN_table function
 
 GEOS5FP_connection = GEOS5FP(download_directory="GEOS5FP_download")
 NASADEM_connection = NASADEMConnection(download_directory="NASADEM_download")
 
+# Process the entire dataset
 results_df = process_FLiESANN_table(
-    single_day_df,
+    calval_df,  # Use the entire dataset
     GEOS5FP_connection=GEOS5FP_connection,
     NASADEM_connection=NASADEM_connection       
 )
 
 print(results_df)
+
+results_df.to_csv("ECOv002-cal-val-FliESANN-inputs.csv")
 
 # %%
 
