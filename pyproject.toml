@@ -54,3 +54,9 @@ exclude = ["notebooks*", "references*", "examples*"]
 
 [project.scripts]
 verify-FLiESANN = "FLiESANN.verify:main"
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore:numpy.ndarray size changed:RuntimeWarning",
+    "ignore::DeprecationWarning"
+]
