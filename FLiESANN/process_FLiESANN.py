@@ -10,7 +10,7 @@ from solar_apparent_time import calculate_solar_day_of_year, calculate_solar_hou
 from sun_angles import calculate_SZA_from_DOY_and_hour
 from koppengeiger import load_koppen_geiger
 from NASADEM import NASADEM, NASADEMConnection
-from shapely.geometry import Point
+import shapely
 
 from .constants import *
 from .colors import *
@@ -28,7 +28,7 @@ def FLiESANN(
         SZA: Union[Raster, np.ndarray, float] = None,
         KG_climate: Union[Raster, np.ndarray, int] = None,
         SWin_Wm2: Union[Raster, np.ndarray, float] = None,
-        geometry: Union[RasterGeometry, Point] = None,
+        geometry: Union[RasterGeometry, shapely.geometry.Point, rt.Point, shapely.geometry.MultiPoint, rt.MultiPoint] = None,
         time_UTC: datetime = None,
         day_of_year: Union[Raster, np.ndarray, float] = None,
         hour_of_day: Union[Raster, np.ndarray, float] = None,
@@ -96,10 +96,28 @@ def FLiESANN(
         """Ensure the input is an array, converting scalar values if necessary."""
         if isinstance(value, (int, float)):
             return np.full(shape, value, dtype=np.float32) if shape else np.array(value, dtype=np.float32)
-        return value
+        elif value is None:
+            return None
+        elif isinstance(value, np.ndarray):
+            # Convert object arrays with None values to float arrays with NaN
+            if value.dtype == object:
+                # Replace None with NaN and convert to float32
+                value_copy = value.copy()
+                value_copy[value_copy == None] = np.nan
+                return value_copy.astype(np.float32)
+            else:
+                return value.astype(np.float32)
+        else:
+            # For other types (like lists), convert to array and then ensure float32
+            arr = np.array(value)
+            if arr.dtype == object:
+                arr[arr == None] = np.nan
+                return arr.astype(np.float32)
+            else:
+                return arr.astype(np.float32)
 
-    if geometry is not None and not isinstance(geometry, RasterGeometry) and not isinstance(geometry, (Point, rt.Point)):
-        raise TypeError(f"geometry must be a RasterGeometry, Point, or None, not {type(geometry)}")
+    if geometry is not None and not isinstance(geometry, RasterGeometry) and not isinstance(geometry, (shapely.geometry.Point, rt.Point, shapely.geometry.MultiPoint, rt.MultiPoint)):
+        raise TypeError(f"geometry must be a RasterGeometry, Point, MultiPoint or None, not {type(geometry)}")
 
     if geometry is None and isinstance(albedo, Raster):
         geometry = albedo.geometry
@@ -116,7 +134,13 @@ def FLiESANN(
 
     ## FIXME need to fetch default values for parameters: COT, AOT, vapor_gccm, ozone_cm, elevation_km, SZA, KG_climate 
 
-    shape = geometry.shape if isinstance(geometry, (Raster, np.ndarray)) else None
+    # Determine shape for array operations - include MultiPoint for vectorized processing
+    if isinstance(geometry, (Raster, np.ndarray)):
+        shape = geometry.shape
+    elif isinstance(geometry, (shapely.geometry.MultiPoint, rt.MultiPoint)):
+        shape = (len(geometry.geoms),) if hasattr(geometry, 'geoms') else (len(geometry),)
+    else:
+        shape = None
 
     albedo = ensure_array(albedo, shape)
     COT = ensure_array(COT, shape)

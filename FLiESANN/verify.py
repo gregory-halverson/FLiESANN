@@ -1,3 +1,5 @@
+import argparse
+
 def verify() -> bool:
     """
     Verifies the correctness of the PT-JPL-SM model implementation by comparing
@@ -25,7 +27,7 @@ def verify() -> bool:
     output_df = pd.read_csv(output_file_path)
 
     # Run the model on the input table
-    model_df = process_FLiESANN_table(input_df)
+    model_df = process_FLiESANN_table(input_df, row_wise=False)
 
     # Columns to compare (model outputs)
     output_columns = [
@@ -40,11 +42,22 @@ def verify() -> bool:
             continue
         model_vals = model_df[col].values
         ref_vals = output_df[col].values
+        
+        # Ensure values are numeric and handle NaN safely
+        try:
+            model_vals = pd.to_numeric(model_vals, errors='coerce')
+            ref_vals = pd.to_numeric(ref_vals, errors='coerce')
+        except:
+            # If conversion fails, treat as string comparison
+            if not np.array_equal(model_vals, ref_vals):
+                mismatches.append((col, 'value_mismatch', {'type': 'string_mismatch'}))
+            continue
+            
         # Use numpy allclose for floating point comparison
         if not np.allclose(model_vals, ref_vals, rtol=1e-5, atol=1e-8, equal_nan=True):
             # Find indices where values differ
             diffs = np.abs(model_vals - ref_vals)
-            max_diff = np.nanmax(diffs)
+            max_diff = np.nanmax(diffs) if not np.all(np.isnan(diffs)) else np.nan
             idxs = np.where(~np.isclose(model_vals, ref_vals, rtol=1e-5, atol=1e-8, equal_nan=True))[0]
             mismatch_info = {
                 'indices': idxs.tolist(),
@@ -61,10 +74,32 @@ def verify() -> bool:
                 print(f"  Missing column: {col}")
             elif reason == 'value_mismatch':
                 print(f"  Mismatch in column: {col}")
-                print(f"    Max difference: {info['max_diff']}")
-                print(f"    Indices off: {info['indices']}")
-                print(f"    Model values: {info['model_values']}")
-                print(f"    Reference values: {info['ref_values']}")
-                print(f"    Differences: {info['diffs']}")
+                if info.get('type') == 'string_mismatch':
+                    print(f"    String comparison failed")
+                else:
+                    print(f"    Max difference: {info['max_diff']}")
+                    print(f"    Indices off: {info['indices']}")
+                    print(f"    Model values: {info['model_values']}")
+                    print(f"    Reference values: {info['ref_values']}")
+                    print(f"    Differences: {info['diffs']}")
         return False
     return True
+
+def main():
+    """
+    Main function to execute the verification process.
+    """
+    parser = argparse.ArgumentParser(description="Verify the correctness of the PT-JPL-SM model implementation.")
+    # Add arguments here if needed in the future
+    args = parser.parse_args()
+
+    # Call the verify function
+    success = verify()
+
+    if success:
+        print("Verification succeeded.")
+    else:
+        print("Verification failed.")
+
+if __name__ == "__main__":
+    main()
