@@ -17,7 +17,7 @@ def process_FLiESANN_table(
         input_df: DataFrame,
         GEOS5FP_connection: GEOS5FP = None,
         NASADEM_connection: NASADEMConnection = None,
-        row_wise: bool = True) -> DataFrame:
+        row_wise: bool = False) -> DataFrame:
     """
     Processes a DataFrame of FLiES inputs and returns a DataFrame with FLiES outputs.
 
@@ -31,7 +31,7 @@ def process_FLiESANN_table(
         - AOT (float, optional): Aerosol optical thickness.
         - vapor_gccm (float): Water vapor in grams per cubic centimeter.
         - ozone_cm (float): Ozone concentration in centimeters.
-        - elevation_km (float): Elevation in kilometers.
+        - elevation_m (float): Elevation in meters.
         - SZA (float, optional): Solar zenith angle in degrees.
         - KG or KG_climate (str): Köppen-Geiger climate classification.
     GEOS5FP_connection (GEOS5FP, optional): Connection object for GEOS-5 FP data.
@@ -111,7 +111,7 @@ def process_FLiESANN_table(
                 AOT=row.get("AOT"),
                 vapor_gccm=row.get("vapor_gccm"),
                 ozone_cm=row.get("ozone_cm"),
-                elevation_km=row.get("elevation_km"),
+                elevation_m=row.get("elevation_m"),
                 SZA=row.get("SZA"),
                 KG_climate=row.get("KG_climate", row.get("KG")),
                 GEOS5FP_connection=GEOS5FP_connection,
@@ -158,7 +158,7 @@ def process_FLiESANN_table(
             AOT=get_column_or_none(input_df, "AOT"),
             vapor_gccm=get_column_or_none(input_df, "vapor_gccm"),
             ozone_cm=get_column_or_none(input_df, "ozone_cm"),
-            elevation_km=get_column_or_none(input_df, "elevation_km"),
+            elevation_m=get_column_or_none(input_df, "elevation_m"),
             SZA=get_column_or_none(input_df, "SZA"),
             KG_climate=get_column_or_none(input_df, "KG_climate", "KG"),
             GEOS5FP_connection=GEOS5FP_connection,

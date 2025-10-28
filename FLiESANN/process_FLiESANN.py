@@ -24,7 +24,7 @@ def FLiESANN(
         AOT: Union[Raster, np.ndarray, float] = None,
         vapor_gccm: Union[Raster, np.ndarray, float] = None,
         ozone_cm: Union[Raster, np.ndarray, float] = None,
-        elevation_km: Union[Raster, np.ndarray, float] = None,
+        elevation_m: Union[Raster, np.ndarray, float] = None,
         SZA: Union[Raster, np.ndarray, float] = None,
         KG_climate: Union[Raster, np.ndarray, int] = None,
         SWin_Wm2: Union[Raster, np.ndarray, float] = None,
@@ -53,7 +53,7 @@ def FLiESANN(
         AOT (Union[Raster, np.ndarray], optional): Aerosol optical thickness. Defaults to None.
         vapor_gccm (Union[Raster, np.ndarray], optional): Water vapor in grams per square centimeter. Defaults to None.
         ozone_cm (Union[Raster, np.ndarray], optional): Ozone concentration in centimeters. Defaults to None.
-        elevation_km (Union[Raster, np.ndarray], optional): Elevation in kilometers. Defaults to None.
+        elevation_m (Union[Raster, np.ndarray], optional): Elevation in meters. Defaults to None.
         SZA (Union[Raster, np.ndarray], optional): Solar zenith angle. Defaults to None.
         KG_climate (Union[Raster, np.ndarray], optional): Köppen-Geiger climate classification. Defaults to None.
         SWin_Wm2 (Union[Raster, np.ndarray], optional): Shortwave incoming solar radiation at the bottom of the atmosphere. Defaults to None.
@@ -147,7 +147,6 @@ def FLiESANN(
     AOT = ensure_array(AOT, shape)
     vapor_gccm = ensure_array(vapor_gccm, shape)
     ozone_cm = ensure_array(ozone_cm, shape)
-    elevation_km = ensure_array(elevation_km, shape)
     SZA = ensure_array(SZA, shape)
     KG_climate = ensure_array(KG_climate, shape) if not isinstance(KG_climate, int) else KG_climate
     SWin_Wm2 = ensure_array(SWin_Wm2, shape)
@@ -201,10 +200,15 @@ def FLiESANN(
             resampling=resampling
         )
 
+    if elevation_m is not None:
+        elevation_km = elevation_m / 1000.0
+
     if elevation_km is None and geometry is not None:
         print(type(geometry))
         print(geometry)
         elevation_km = NASADEM.elevation_km(geometry=geometry)
+
+    elevation_km = ensure_array(elevation_km, shape)
 
     # Preprocess COT and determine aerosol/cloud types
     COT = np.clip(COT, 0, None)  # Ensure COT is non-negative
