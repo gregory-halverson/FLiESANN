@@ -13,7 +13,7 @@ def run_FLiESANN_inference(
         vapor_gccm: np.ndarray,
         ozone_cm: np.ndarray,
         albedo: np.ndarray,
-        elevation_km: np.ndarray,
+        elevation_m: np.ndarray,
         SZA: np.ndarray,
         ANN_model=None,
         model_filename=MODEL_FILENAME,
@@ -36,7 +36,7 @@ def run_FLiESANN_inference(
         vapor_gccm (np.ndarray): Water vapor in grams per square centimeter.
         ozone_cm (np.ndarray): Ozone concentration in centimeters.
         albedo (np.ndarray): Surface albedo (reflectivity).
-        elevation_km (np.ndarray): Elevation in kilometers.
+        elevation_m (np.ndarray): Elevation in meters.
         SZA (np.ndarray): Solar zenith angle.
         ANN_model (optional): Pre-loaded ANN model object. If None, the model is loaded 
                               from the specified file.
@@ -62,7 +62,8 @@ def run_FLiESANN_inference(
         - The function automatically adjusts the input shape to match the model's expected input dimensions.
         - TensorFlow warnings and logs are suppressed during model loading and inference.
     """
-    
+    elevation_km = elevation_m / 1000.0  # Convert elevation from meters to kilometers
+
     import os
     import warnings
     # Save current TF_CPP_MIN_LOG_LEVEL and TF logger level

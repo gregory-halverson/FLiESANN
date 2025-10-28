@@ -25,7 +25,7 @@ def FLiESANN(
         vapor_gccm: Union[Raster, np.ndarray, float] = None,
         ozone_cm: Union[Raster, np.ndarray, float] = None,
         elevation_m: Union[Raster, np.ndarray, float] = None,
-        SZA: Union[Raster, np.ndarray, float] = None,
+        SZA_deg: Union[Raster, np.ndarray, float] = None,
         KG_climate: Union[Raster, np.ndarray, int] = None,
         SWin_Wm2: Union[Raster, np.ndarray, float] = None,
         geometry: Union[RasterGeometry, shapely.geometry.Point, rt.Point, shapely.geometry.MultiPoint, rt.MultiPoint] = None,
@@ -143,32 +143,37 @@ def FLiESANN(
         shape = None
 
     albedo = ensure_array(albedo, shape)
-    COT = ensure_array(COT, shape)
-    AOT = ensure_array(AOT, shape)
-    vapor_gccm = ensure_array(vapor_gccm, shape)
-    ozone_cm = ensure_array(ozone_cm, shape)
-    SZA = ensure_array(SZA, shape)
-    KG_climate = ensure_array(KG_climate, shape) if not isinstance(KG_climate, int) else KG_climate
+
+    results["albedo"] = albedo
+    
     SWin_Wm2 = ensure_array(SWin_Wm2, shape)
     day_of_year = ensure_array(day_of_year, shape)
     hour_of_day = ensure_array(hour_of_day, shape)
 
-    if SZA is None and geometry is not None:
-        SZA = calculate_SZA_from_DOY_and_hour(
+    if SZA_deg is None and geometry is not None:
+        SZA_deg = calculate_SZA_from_DOY_and_hour(
             lat=geometry.lat,
             lon=geometry.lon,
             DOY=day_of_year,
             hour=hour_of_day
         )
 
-    if SZA is None:
-        raise ValueError("solar zenith angle or geometry must be given")
+    if SZA_deg is None:
+        raise ValueError("solar zenith angle or geometry and time must be given")
+
+    results["SZA_deg"] = SZA_deg
+
+    SZA_deg = ensure_array(SZA_deg, shape)
 
     if KG_climate is None and geometry is not None:
         KG_climate = load_koppen_geiger(geometry=geometry)
 
     if KG_climate is None:
         raise ValueError("Koppen Geieger climate classification or geometry must be given")
+
+    results["KG_climate"] = KG_climate
+
+    KG_climate = ensure_array(KG_climate, shape) if not isinstance(KG_climate, int) else KG_climate
 
     if zero_COT_correction:
         COT = np.zeros(albedo.shape, dtype=np.float32)
@@ -179,12 +184,26 @@ def FLiESANN(
             resampling=resampling
         )
     
+    if COT is None:
+        raise ValueError("cloud optical thickness or geometry and time must be given")
+
+    results["COT"] = COT
+
+    COT = ensure_array(COT, shape)
+    
     if AOT is None and geometry is not None and time_UTC is not None:
         AOT = GEOS5FP_connection.AOT(
             time_UTC=time_UTC,
             geometry=geometry,
             resampling=resampling
         )
+
+    if AOT is None:
+        raise ValueError("aerosol optical thickness or geometry and time must be given")
+
+    results["AOT"] = AOT
+
+    AOT = ensure_array(AOT, shape)
 
     if vapor_gccm is None and geometry is not None and time_UTC is not None:
         vapor_gccm = GEOS5FP_connection.vapor_gccm(
@@ -193,6 +212,13 @@ def FLiESANN(
             resampling=resampling
         )
 
+    if vapor_gccm is None:
+        raise ValueError("water vapor or geometry and time must be given")
+
+    results["vapor_gccm"] = vapor_gccm
+
+    vapor_gccm = ensure_array(vapor_gccm, shape)
+
     if ozone_cm is None and geometry is not None and time_UTC is not None:
         ozone_cm = GEOS5FP_connection.ozone_cm(
             time_UTC=time_UTC,
@@ -200,13 +226,23 @@ def FLiESANN(
             resampling=resampling
         )
 
+    if ozone_cm is None:
+        raise ValueError("ozone concentration or geometry and time must be given")
+
+    results["ozone_cm"] = ozone_cm
+
+    ozone_cm = ensure_array(ozone_cm, shape)
+
     if elevation_m is not None:
         elevation_km = elevation_m / 1000.0
 
     if elevation_km is None and geometry is not None:
-        print(type(geometry))
-        print(geometry)
         elevation_km = NASADEM.elevation_km(geometry=geometry)
+
+    if elevation_km is None:
+        raise ValueError("elevation or geometry must be given")
+
+    results["elevation_m"] = elevation_m
 
     elevation_km = ensure_array(elevation_km, shape)
 
@@ -226,8 +262,8 @@ def FLiESANN(
         vapor_gccm=vapor_gccm,
         ozone_cm=ozone_cm,
         albedo=albedo,
-        elevation_km=elevation_km,
-        SZA=SZA,
+        elevation_m=elevation_m,
+        SZA=SZA_deg,
         ANN_model=ANN_model,
         model_filename=model_filename,
         split_atypes_ctypes=split_atypes_ctypes
@@ -258,8 +294,8 @@ def FLiESANN(
     ## Radiation components
     if SWin_Wm2 is None:
         dr = 1.0 + 0.033 * np.cos(2 * np.pi / 365.0 * day_of_year)  # Earth-sun distance correction factor
-        SWin_TOA_Wm2 = 1333.6 * dr * np.cos(SZA * np.pi / 180.0)  # Extraterrestrial radiation
-        SWin_TOA_Wm2 = rt.where(SZA > 90.0, 0, SWin_TOA_Wm2)  # Set Ra to 0 when the sun is below the horizon
+        SWin_TOA_Wm2 = 1333.6 * dr * np.cos(SZA_deg * np.pi / 180.0)  # Extraterrestrial radiation
+        SWin_TOA_Wm2 = rt.where(SZA_deg > 90.0, 0, SWin_TOA_Wm2)  # Set Ra to 0 when the sun is below the horizon
     
     SWin_Wm2 = SWin_TOA_Wm2 * atmospheric_transmittance  # scale top-of-atmosphere shortwave radiation to bottom-of-atmosphere
 
@@ -308,8 +344,8 @@ def FLiESANN(
     if isinstance(UV_Wm2, Raster):
         UV_Wm2.cmap = UV_CMAP
 
-    # Store the results in a dictionary
-    results = {
+    # Update the results dictionary with new items instead of replacing it
+    results.update({
         "SWin_Wm2": SWin_Wm2,
         "SWin_TOA_Wm2": SWin_TOA_Wm2,
         "UV_Wm2": UV_Wm2,
@@ -326,7 +362,7 @@ def FLiESANN(
         "UV_diffuse_fraction": UV_diffuse_fraction,
         "PAR_diffuse_fraction": PAR_diffuse_fraction,
         "NIR_diffuse_fraction": NIR_diffuse_fraction
-    }
+    })
 
     # Convert results to Raster objects if raster geometry is given
     if isinstance(geometry, RasterGeometry):

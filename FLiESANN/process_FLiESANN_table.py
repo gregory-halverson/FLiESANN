@@ -112,7 +112,7 @@ def process_FLiESANN_table(
                 vapor_gccm=row.get("vapor_gccm").item() if row.get("vapor_gccm") is not None and hasattr(row.get("vapor_gccm"), 'item') else row.get("vapor_gccm"),
                 ozone_cm=row.get("ozone_cm").item() if row.get("ozone_cm") is not None and hasattr(row.get("ozone_cm"), 'item') else row.get("ozone_cm"),
                 elevation_m=row.get("elevation_m").item() if row.get("elevation_m") is not None and hasattr(row.get("elevation_m"), 'item') else row.get("elevation_m"),
-                SZA=row.get("SZA").item() if row.get("SZA") is not None and hasattr(row.get("SZA"), 'item') else row.get("SZA"),
+                SZA_deg=row.get("SZA").item() if row.get("SZA") is not None and hasattr(row.get("SZA"), 'item') else row.get("SZA"),
                 KG_climate=row.get("KG_climate", row.get("KG")).item() if row.get("KG_climate", row.get("KG")) is not None and hasattr(row.get("KG_climate", row.get("KG")), 'item') else row.get("KG_climate", row.get("KG")),
                 GEOS5FP_connection=GEOS5FP_connection,
                 NASADEM_connection=NASADEM_connection
@@ -159,7 +159,7 @@ def process_FLiESANN_table(
             vapor_gccm=get_column_or_none(input_df, "vapor_gccm"),
             ozone_cm=get_column_or_none(input_df, "ozone_cm"),
             elevation_m=get_column_or_none(input_df, "elevation_m"),
-            SZA=get_column_or_none(input_df, "SZA"),
+            SZA_deg=get_column_or_none(input_df, "SZA"),
             KG_climate=get_column_or_none(input_df, "KG_climate", "KG"),
             GEOS5FP_connection=GEOS5FP_connection,
             NASADEM_connection=NASADEM_connection
