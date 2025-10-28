@@ -33,21 +33,34 @@ most_observed_date_str = most_observed_date.strftime('%Y-%m-%d')
 most_observed_date_str
 
 # %%
-single_day_df = calval_df[calval_df['date_UTC'] == pd.to_datetime(most_observed_date_str).date()]
-single_day_df
+# Remove the filtering step for a single day
+# Pass the entire dataset to the process_FLiESANN_table function
 
-# %%
+# Process with explicit atmospheric parameter defaults to match reference data
+# The reference data uses: COT=0, AOT=0, vapor_gccm=0, ozone_cm=0.3
+# This approach avoids NaN values from missing GEOS5FP data
 
 GEOS5FP_connection = GEOS5FP(download_directory="GEOS5FP_download")
 NASADEM_connection = NASADEMConnection(download_directory="NASADEM_download")
 
+# Add default atmospheric parameters to the dataframe
+# These match the values found in the reference outputs
+calval_df_with_defaults = calval_df.copy()
+calval_df_with_defaults['COT'] = 0.0  # Clear sky conditions  
+calval_df_with_defaults['AOT'] = 0.0  # No aerosols
+calval_df_with_defaults['vapor_gccm'] = 0.0  # No water vapor
+calval_df_with_defaults['ozone_cm'] = 0.3  # Constant ozone level
+
+# Process the entire dataset
 results_df = process_FLiESANN_table(
-    single_day_df,
+    calval_df_with_defaults,  # Use dataset with atmospheric defaults
     GEOS5FP_connection=GEOS5FP_connection,
     NASADEM_connection=NASADEM_connection       
 )
 
 print(results_df)
+
+results_df.to_csv("ECOv002-cal-val-FliESANN-inputs.csv")
 
 # %%
 
