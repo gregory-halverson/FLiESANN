@@ -17,14 +17,12 @@ def verify() -> bool:
     import pandas as pd
     import numpy as np
     from .ECOv002_calval_FLiESANN_inputs import load_ECOv002_calval_FLiESANN_inputs
+    from .ECOv002_calval_FLiESANN_outputs import load_ECOv002_calval_FLiESANN_outputs
     from .process_FLiESANN_table import process_FLiESANN_table
-    import os
 
     # Load input and output tables
     input_df = load_ECOv002_calval_FLiESANN_inputs()
-    module_dir = os.path.dirname(os.path.abspath(__file__))
-    output_file_path = os.path.join(module_dir, "ECOv002-cal-val-FLiESANN-outputs.csv")
-    output_df = pd.read_csv(output_file_path)
+    output_df = load_ECOv002_calval_FLiESANN_outputs()
 
     # Run the model on the input table
     model_df = process_FLiESANN_table(input_df, row_wise=False)
