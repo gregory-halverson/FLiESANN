@@ -91,6 +91,7 @@ def FLiESANN(
     Raises:
         ValueError: If required time or geometry parameters are not provided.
     """
+    results = {}
 
     def ensure_array(value, shape=None):
         """Ensure the input is an array, converting scalar values if necessary."""
