@@ -106,14 +106,14 @@ def process_FLiESANN_table(
             FLiES_results = FLiESANN(
                 geometry=geometry,
                 time_UTC=time_UTC,
-                albedo=row.albedo,
-                COT=row.get("COT"),
-                AOT=row.get("AOT"),
-                vapor_gccm=row.get("vapor_gccm"),
-                ozone_cm=row.get("ozone_cm"),
-                elevation_m=row.get("elevation_m"),
-                SZA=row.get("SZA"),
-                KG_climate=row.get("KG_climate", row.get("KG")),
+                albedo=row.albedo.item() if hasattr(row.albedo, 'item') else row.albedo,
+                COT=row.get("COT").item() if row.get("COT") is not None and hasattr(row.get("COT"), 'item') else row.get("COT"),
+                AOT=row.get("AOT").item() if row.get("AOT") is not None and hasattr(row.get("AOT"), 'item') else row.get("AOT"),
+                vapor_gccm=row.get("vapor_gccm").item() if row.get("vapor_gccm") is not None and hasattr(row.get("vapor_gccm"), 'item') else row.get("vapor_gccm"),
+                ozone_cm=row.get("ozone_cm").item() if row.get("ozone_cm") is not None and hasattr(row.get("ozone_cm"), 'item') else row.get("ozone_cm"),
+                elevation_m=row.get("elevation_m").item() if row.get("elevation_m") is not None and hasattr(row.get("elevation_m"), 'item') else row.get("elevation_m"),
+                SZA=row.get("SZA").item() if row.get("SZA") is not None and hasattr(row.get("SZA"), 'item') else row.get("SZA"),
+                KG_climate=row.get("KG_climate", row.get("KG")).item() if row.get("KG_climate", row.get("KG")) is not None and hasattr(row.get("KG_climate", row.get("KG")), 'item') else row.get("KG_climate", row.get("KG")),
                 GEOS5FP_connection=GEOS5FP_connection,
                 NASADEM_connection=NASADEM_connection
             )
