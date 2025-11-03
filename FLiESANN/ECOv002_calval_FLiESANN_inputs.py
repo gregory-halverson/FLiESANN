@@ -3,7 +3,7 @@ import pandas as pd
 
 def load_ECOv002_calval_FLiESANN_inputs() -> pd.DataFrame:
     """
-    Load the input data for the FLiESANN model from the ECOSTRESS Collection 2 Cal-Val dataset.
+    Load the input data for the FLiES-ANN model from the ECOSTRESS Collection 2 Cal-Val dataset.
 
     Returns:
         pd.DataFrame: A DataFrame containing the reference input data.
