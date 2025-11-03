@@ -60,3 +60,6 @@ docker-remove:
 
 verify:
 	python -c "from FLiESANN.verify import main; main()"
+
+generate-output-dataset:
+	python -c "from FLiESANN.generate_output_dataset import main; main()"
