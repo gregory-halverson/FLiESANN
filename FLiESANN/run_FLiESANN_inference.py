@@ -1,4 +1,5 @@
 import numpy as np
+from tqdm.notebook import tqdm
 
 from .constants import *
 from .load_FLiESANN_model import load_FLiESANN_model
@@ -12,11 +13,13 @@ def run_FLiESANN_inference(
         vapor_gccm: np.ndarray,
         ozone_cm: np.ndarray,
         albedo: np.ndarray,
-        elevation_km: np.ndarray,
+        elevation_m: np.ndarray,
         SZA: np.ndarray,
         ANN_model=None,
         model_filename=MODEL_FILENAME,
-        split_atypes_ctypes=SPLIT_ATYPES_CTYPES) -> dict:
+        split_atypes_ctypes=SPLIT_ATYPES_CTYPES,
+        use_tqdm=False  # New parameter to toggle TQDM progress bar
+) -> dict:
     """
     Runs inference for an artificial neural network (ANN) emulator of the Forest Light
     Environmental Simulator (FLiES) radiative transfer model.
@@ -33,13 +36,14 @@ def run_FLiESANN_inference(
         vapor_gccm (np.ndarray): Water vapor in grams per square centimeter.
         ozone_cm (np.ndarray): Ozone concentration in centimeters.
         albedo (np.ndarray): Surface albedo (reflectivity).
-        elevation_km (np.ndarray): Elevation in kilometers.
+        elevation_m (np.ndarray): Elevation in meters.
         SZA (np.ndarray): Solar zenith angle.
         ANN_model (optional): Pre-loaded ANN model object. If None, the model is loaded 
                               from the specified file.
         model_filename (str, optional): Filename of the ANN model to load if ANN_model is not provided.
         split_atypes_ctypes (bool, optional): Flag indicating how aerosol and cloud types are 
                                              handled in input preparation.
+        use_tqdm (bool, optional): Flag to enable or disable the TQDM progress bar for predictions.
 
     Returns:
         dict: A dictionary containing the predicted radiative transfer parameters:
@@ -58,7 +62,8 @@ def run_FLiESANN_inference(
         - The function automatically adjusts the input shape to match the model's expected input dimensions.
         - TensorFlow warnings and logs are suppressed during model loading and inference.
     """
-    
+    elevation_km = elevation_m / 1000.0  # Convert elevation from meters to kilometers
+
     import os
     import warnings
     # Save current TF_CPP_MIN_LOG_LEVEL and TF logger level
@@ -117,7 +122,18 @@ def run_FLiESANN_inference(
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                outputs = ANN_model.predict(inputs_array)
+
+                if use_tqdm:
+                    # Use TQDM progress bar for predictions
+                    outputs = []
+                    for batch in tqdm(inputs_array, desc="Running Inference", unit="batch"):
+                        batch_output = ANN_model.predict(batch[None, ...])  # Add batch dimension
+                        outputs.append(batch_output)
+
+                    outputs = np.vstack(outputs)  # Combine all batch outputs
+                else:
+                    # Run prediction without progress bar
+                    outputs = ANN_model.predict(inputs_array)
         except ValueError as e:
             error_msg = str(e)
             if not expects_3d and ("expected shape" in error_msg or "incompatible" in error_msg):
@@ -126,7 +142,18 @@ def run_FLiESANN_inference(
                 inputs_array = inputs_array.reshape(inputs_array.shape[0], 1, inputs_array.shape[1])
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
-                    outputs = ANN_model.predict(inputs_array)
+
+                    if use_tqdm:
+                        # Use TQDM progress bar for predictions
+                        outputs = []
+                        for batch in tqdm(inputs_array, desc="Running Inference", unit="batch"):
+                            batch_output = ANN_model.predict(batch[None, ...])  # Add batch dimension
+                            outputs.append(batch_output)
+
+                        outputs = np.vstack(outputs)  # Combine all batch outputs
+                    else:
+                        # Run prediction without progress bar
+                        outputs = ANN_model.predict(inputs_array)
                 expects_3d = True
             else:
                 raise e
