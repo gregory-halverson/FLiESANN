@@ -255,7 +255,8 @@ def FLiESANN(
 
     # Run ANN inference to get initial radiative transfer parameters
     prediction_start_time = process_time()
-    results = run_FLiESANN_inference(
+    
+    inference_results = run_FLiESANN_inference(
         atype=atype,
         ctype=ctype,
         COT=COT,
@@ -269,6 +270,9 @@ def FLiESANN(
         model_filename=model_filename,
         split_atypes_ctypes=split_atypes_ctypes
     )
+
+    results.update(inference_results)
+
     prediction_end_time = process_time()
     prediction_duration = prediction_end_time - prediction_start_time
 
