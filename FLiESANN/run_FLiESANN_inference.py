@@ -112,22 +112,12 @@ def run_FLiESANN_inference(
             split_atypes_ctypes=split_atypes_ctypes
         )
 
-        # Debugging inputs before conversion to numpy array
-        print("Prepared inputs DataFrame info:")
-        print(inputs.info())
-        print("Sample inputs DataFrame:")
-        print(inputs.head())
-
+        # Remove debugging print statements and ensure clean processing
         # Ensure all columns in the DataFrame are numerical
         inputs = inputs.astype(np.float32)
 
         # Convert DataFrame to numpy array and reshape for the model
         inputs_array = inputs.values
-
-        # Debugging inputs_array before prediction
-        print("Inputs array dtype:", inputs_array.dtype)
-        print("Inputs array shape:", inputs_array.shape)
-        print("Inputs array sample:", inputs_array[:5])
 
         # Check what input shape the model expects and adapt accordingly
         # Different TensorFlow/Keras versions may have different input requirements
