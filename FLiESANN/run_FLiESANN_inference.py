@@ -81,6 +81,23 @@ def run_FLiESANN_inference(
             # Load the ANN model if not provided
             ANN_model = load_FLiESANN_model(model_filename)
 
+        # Ensure all inputs are of numerical type
+        atype = np.asarray(atype, dtype=np.float32)
+        ctype = np.asarray(ctype, dtype=np.float32)
+        COT = np.asarray(COT, dtype=np.float32)
+        AOT = np.asarray(AOT, dtype=np.float32)
+        vapor_gccm = np.asarray(vapor_gccm, dtype=np.float32)
+        ozone_cm = np.asarray(ozone_cm, dtype=np.float32)
+        albedo = np.asarray(albedo, dtype=np.float32)
+        elevation_m = np.asarray(elevation_m, dtype=np.float32)
+        SZA = np.asarray(SZA, dtype=np.float32)
+
+        # Check for NaN or None values and handle them
+        if np.any(np.isnan(atype)) or np.any(np.isnan(ctype)) or np.any(np.isnan(COT)) or \
+           np.any(np.isnan(AOT)) or np.any(np.isnan(vapor_gccm)) or np.any(np.isnan(ozone_cm)) or \
+           np.any(np.isnan(albedo)) or np.any(np.isnan(elevation_m)) or np.any(np.isnan(SZA)):
+            raise ValueError("Input arrays contain NaN values. Please clean the data before passing it to the function.")
+
         # Prepare inputs for the ANN model
         inputs = prepare_FLiESANN_inputs(
             atype=atype,
@@ -95,8 +112,22 @@ def run_FLiESANN_inference(
             split_atypes_ctypes=split_atypes_ctypes
         )
 
+        # Debugging inputs before conversion to numpy array
+        print("Prepared inputs DataFrame info:")
+        print(inputs.info())
+        print("Sample inputs DataFrame:")
+        print(inputs.head())
+
+        # Ensure all columns in the DataFrame are numerical
+        inputs = inputs.astype(np.float32)
+
         # Convert DataFrame to numpy array and reshape for the model
         inputs_array = inputs.values
+
+        # Debugging inputs_array before prediction
+        print("Inputs array dtype:", inputs_array.dtype)
+        print("Inputs array shape:", inputs_array.shape)
+        print("Inputs array sample:", inputs_array[:5])
 
         # Check what input shape the model expects and adapt accordingly
         # Different TensorFlow/Keras versions may have different input requirements
