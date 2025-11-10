@@ -81,6 +81,33 @@ def run_FLiESANN_inference(
             # Load the ANN model if not provided
             ANN_model = load_FLiESANN_model(model_filename)
 
+        # Ensure all inputs are of numerical type
+        atype = np.asarray(atype, dtype=np.float32)
+        ctype = np.asarray(ctype, dtype=np.float32)
+        COT = np.asarray(COT, dtype=np.float32)
+        AOT = np.asarray(AOT, dtype=np.float32)
+        vapor_gccm = np.asarray(vapor_gccm, dtype=np.float32)
+        ozone_cm = np.asarray(ozone_cm, dtype=np.float32)
+        albedo = np.asarray(albedo, dtype=np.float32)
+        elevation_m = np.asarray(elevation_m, dtype=np.float32)
+        SZA = np.asarray(SZA, dtype=np.float32)
+
+        # Check for NaN values and create a mask
+        nan_mask = np.isnan(atype) | np.isnan(ctype) | np.isnan(COT) | \
+                   np.isnan(AOT) | np.isnan(vapor_gccm) | np.isnan(ozone_cm) | \
+                   np.isnan(albedo) | np.isnan(elevation_m) | np.isnan(SZA)
+
+        # Replace NaNs with a placeholder value (e.g., 0) for processing
+        atype = np.where(nan_mask, 0, atype)
+        ctype = np.where(nan_mask, 0, ctype)
+        COT = np.where(nan_mask, 0, COT)
+        AOT = np.where(nan_mask, 0, AOT)
+        vapor_gccm = np.where(nan_mask, 0, vapor_gccm)
+        ozone_cm = np.where(nan_mask, 0, ozone_cm)
+        albedo = np.where(nan_mask, 0, albedo)
+        elevation_m = np.where(nan_mask, 0, elevation_m)
+        SZA = np.where(nan_mask, 0, SZA)
+
         # Prepare inputs for the ANN model
         inputs = prepare_FLiESANN_inputs(
             atype=atype,
@@ -94,6 +121,9 @@ def run_FLiESANN_inference(
             SZA=SZA,
             split_atypes_ctypes=split_atypes_ctypes
         )
+
+        # Ensure all columns in the DataFrame are numerical
+        inputs = inputs.astype(np.float32)
 
         # Convert DataFrame to numpy array and reshape for the model
         inputs_array = inputs.values
@@ -166,13 +196,13 @@ def run_FLiESANN_inference(
 
         # Prepare the results dictionary
         results = {
-            'atmospheric_transmittance': np.clip(outputs[:, 0].reshape(shape), 0, 1).astype(np.float32),  # Total transmittance
-            'UV_proportion': np.clip(outputs[:, 1].reshape(shape), 0, 1).astype(np.float32), # Proportion of UV radiation
-            'PAR_proportion': np.clip(outputs[:, 2].reshape(shape), 0, 1).astype(np.float32), # Proportion of visible radiation
-            'NIR_proportion': np.clip(outputs[:, 3].reshape(shape), 0, 1).astype(np.float32), # Proportion of NIR radiation
-            'UV_diffuse_fraction': np.clip(outputs[:, 4].reshape(shape), 0, 1).astype(np.float32), # Diffuse fraction of UV radiation
-            'PAR_diffuse_fraction': np.clip(outputs[:, 5].reshape(shape), 0, 1).astype(np.float32), # Diffuse fraction of visible radiation
-            'NIR_diffuse_fraction': np.clip(outputs[:, 6].reshape(shape), 0, 1).astype(np.float32)  # Diffuse fraction of NIR radiation
+            'atmospheric_transmittance': np.where(nan_mask, np.nan, np.clip(outputs[:, 0].reshape(shape), 0, 1).astype(np.float32)),  # Total transmittance
+            'UV_proportion': np.where(nan_mask, np.nan, np.clip(outputs[:, 1].reshape(shape), 0, 1).astype(np.float32)), # Proportion of UV radiation
+            'PAR_proportion': np.where(nan_mask, np.nan, np.clip(outputs[:, 2].reshape(shape), 0, 1).astype(np.float32)), # Proportion of visible radiation
+            'NIR_proportion': np.where(nan_mask, np.nan, np.clip(outputs[:, 3].reshape(shape), 0, 1).astype(np.float32)), # Proportion of NIR radiation
+            'UV_diffuse_fraction': np.where(nan_mask, np.nan, np.clip(outputs[:, 4].reshape(shape), 0, 1).astype(np.float32)), # Diffuse fraction of UV radiation
+            'PAR_diffuse_fraction': np.where(nan_mask, np.nan, np.clip(outputs[:, 5].reshape(shape), 0, 1).astype(np.float32)), # Diffuse fraction of visible radiation
+            'NIR_diffuse_fraction': np.where(nan_mask, np.nan, np.clip(outputs[:, 6].reshape(shape), 0, 1).astype(np.float32))  # Diffuse fraction of NIR radiation
         }
 
         return results
