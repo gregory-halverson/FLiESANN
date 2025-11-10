@@ -273,16 +273,25 @@ def FLiESANN(
 
     results.update(inference_results)
 
+    # Record the end time for performance monitoring
     prediction_end_time = process_time()
+    # Calculate total time taken for the ANN inference in seconds
     prediction_duration = prediction_end_time - prediction_start_time
 
     # Extract individual components from the results dictionary
+    # Fraction of incoming solar radiation that reaches the surface after atmospheric attenuation (0-1) [previously: tm]
     atmospheric_transmittance = results["atmospheric_transmittance"]
+    # Proportion of total solar radiation in the ultraviolet range (280-400 nm) (0-1) [previously: puv]
     UV_proportion = results["UV_proportion"]
+    # Proportion of total solar radiation in the photosynthetically active range (400-700 nm) (0-1) [previously: pvis]
     PAR_proportion = results["PAR_proportion"]
+    # Proportion of total solar radiation in the near-infrared range (700-3000 nm) (0-1) [previously: pnir]
     NIR_proportion = results["NIR_proportion"]
+    # Fraction of UV radiation that is diffuse (scattered) rather than direct (0-1) [previously: fduv]
     UV_diffuse_fraction = results["UV_diffuse_fraction"]
+    # Fraction of PAR radiation that is diffuse (scattered) rather than direct (0-1) [previously: fdvis]
     PAR_diffuse_fraction = results["PAR_diffuse_fraction"]
+    # Fraction of NIR radiation that is diffuse (scattered) rather than direct (0-1) [previously: fdnir]
     NIR_diffuse_fraction = results["NIR_diffuse_fraction"]
 
     ## Correction for diffuse PAR
@@ -305,34 +314,34 @@ def FLiESANN(
     SWin_Wm2 = SWin_TOA_Wm2 * atmospheric_transmittance  # scale top-of-atmosphere shortwave radiation to bottom-of-atmosphere
 
     # Calculate ultraviolet radiation (UV) in W/m² by scaling the total shortwave incoming radiation (SWin_Wm2)
-    # with the proportion of UV radiation (UV_proportion). UV radiation is a small fraction of the solar spectrum.
+    # with the proportion of UV radiation (UV_proportion). UV radiation is a small fraction of the solar spectrum. [previously: UV]
     UV_Wm2 = SWin_Wm2 * UV_proportion
 
     # Calculate photosynthetically active radiation (PAR) in W/m², which represents the visible portion of the solar spectrum.
-    # This is derived by scaling the total shortwave incoming radiation (SWin_Wm2) with the proportion of visible radiation (PAR_proportion).
+    # This is derived by scaling the total shortwave incoming radiation (SWin_Wm2) with the proportion of visible radiation (PAR_proportion). [previously: VIS, visible_Wm2]
     PAR_Wm2 = SWin_Wm2 * PAR_proportion
 
     # Calculate near-infrared radiation (NIR) in W/m², which represents the portion of the solar spectrum beyond visible light.
-    # This is derived by scaling the total shortwave incoming radiation (SWin_Wm2) with the proportion of NIR radiation (NIR_proportion).
+    # This is derived by scaling the total shortwave incoming radiation (SWin_Wm2) with the proportion of NIR radiation (NIR_proportion). [previously: NIR]
     NIR_Wm2 = SWin_Wm2 * NIR_proportion
 
     # Calculate diffuse visible radiation (PAR_diffuse_Wm2) in W/m² by scaling the total visible radiation (PAR_Wm2)
     # with the diffuse fraction of visible radiation (PAR_diffuse_fraction). The np.clip function ensures the value
-    # remains within the range [0, PAR_Wm2]. Diffuse radiation is scattered sunlight that reaches the surface indirectly.
+    # remains within the range [0, PAR_Wm2]. Diffuse radiation is scattered sunlight that reaches the surface indirectly. [previously: VISdiff, visible_diffuse_Wm2]
     PAR_diffuse_Wm2 = np.clip(PAR_Wm2 * PAR_diffuse_fraction, 0, PAR_Wm2)
 
     # Calculate diffuse near-infrared radiation (NIR_diffuse_Wm2) in W/m² by scaling the total NIR radiation (NIR_Wm2)
     # with the diffuse fraction of NIR radiation (NIR_diffuse_fraction). The np.clip function ensures the value
-    # remains within the range [0, NIR_Wm2].
+    # remains within the range [0, NIR_Wm2]. [previously: NIRdiff]
     NIR_diffuse_Wm2 = np.clip(NIR_Wm2 * NIR_diffuse_fraction, 0, NIR_Wm2)
 
     # Calculate direct visible radiation (PAR_direct_Wm2) in W/m² by subtracting the diffuse visible radiation (PAR_diffuse_Wm2)
     # from the total visible radiation (PAR_Wm2). The np.clip function ensures the value remains within the range [0, PAR_Wm2].
-    # Direct radiation is sunlight that reaches the surface without being scattered.
+    # Direct radiation is sunlight that reaches the surface without being scattered. [previously: VISdir, visible_direct_Wm2]
     PAR_direct_Wm2 = np.clip(PAR_Wm2 - PAR_diffuse_Wm2, 0, PAR_Wm2)
 
     # Calculate direct near-infrared radiation (NIR_direct_Wm2) in W/m² by subtracting the diffuse NIR radiation (NIR_diffuse_Wm2)
-    # from the total NIR radiation (NIR_Wm2). The np.clip function ensures the value remains within the range [0, NIR_Wm2].
+    # from the total NIR radiation (NIR_Wm2). The np.clip function ensures the value remains within the range [0, NIR_Wm2]. [previously: NIRdir, NIR_direct_Wm2]
     NIR_direct_Wm2 = np.clip(NIR_Wm2 - NIR_diffuse_Wm2, 0, NIR_Wm2)
 
     if isinstance(geometry, RasterGeometry):
