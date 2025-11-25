@@ -29,7 +29,7 @@ def generate_FLiESANN_GEOS5FP_inputs(
 
     if update_package_data:
         if filename is None:
-        filename = join(dirname(__file__), "ECOv002_calval_FLiESANN_GEOS5FP_inputs.csv")
+            filename = join(dirname(__file__), "ECOv002_calval_FLiESANN_GEOS5FP_inputs.csv")
 
         results_df.to_csv(filename, index=False)
 
