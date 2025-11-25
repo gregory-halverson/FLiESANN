@@ -7,7 +7,9 @@ from FLiESANN import GEOS5FP_INPUTS
 
 logger = logging.getLogger(__name__)
 
-def generate_FLiESANN_GEOS5FP_inputs():
+def generate_FLiESANN_GEOS5FP_inputs(
+        filename: str = None,
+        update_package_data: bool = True) -> None:
     logger.info("Generating FLiES-ANN GEOS-5 FP input table:")
 
     for item in GEOS5FP_INPUTS:
@@ -25,6 +27,14 @@ def generate_FLiESANN_GEOS5FP_inputs():
         targets_df=targets_df
     )
 
-    filename = join(dirname(__file__), "ECOv002_calval_FLiESANN_GEOS5FP_inputs.csv")
+    if update_package_data:
+        if filename is None:
+        filename = join(dirname(__file__), "ECOv002_calval_FLiESANN_GEOS5FP_inputs.csv")
+
+        results_df.to_csv(filename, index=False)
 
     return results_df
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    generate_FLiESANN_GEOS5FP_inputs()
