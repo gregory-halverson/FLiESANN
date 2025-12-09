@@ -1,5 +1,11 @@
 from os.path import dirname, join
 import logging
+import sys
+
+# Allow running as script while preserving package imports
+if __name__ == "__main__" and __package__ is None:
+    sys.path.insert(0, dirname(dirname(__file__)))
+    __package__ = "FLiESANN"
 
 from ECOv002_calval_tables import load_times_locations
 from GEOS5FP import GEOS5FP
