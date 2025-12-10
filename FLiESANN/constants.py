@@ -16,4 +16,11 @@ DEFAULT_SAVE_INTERMEDIATE = True
 DEFAULT_SHOW_DISTRIBUTION = True
 DEFAULT_DYNAMIC_ATYPE_CTYPE = False
 
-GEOS5FP_INPUTS = ["COT", "AOT", "vapor_gccm", "ozone_cm"]
+GEOS5FP_INPUTS = [
+    "COT", 
+    "AOT", 
+    "vapor_gccm", 
+    "ozone_cm",
+    "wind_speed_mps",
+    "Ca"
+]
