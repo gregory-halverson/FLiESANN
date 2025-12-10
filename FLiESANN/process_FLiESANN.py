@@ -17,6 +17,7 @@ from .colors import *
 from .determine_atype import determine_atype
 from .determine_ctype import determine_ctype
 from .run_FLiESANN_inference import run_FLiESANN_inference
+from .retrieve_FLiESANN_GEOS5FP_inputs import retrieve_FLiESANN_GEOS5FP_inputs
 
 def FLiESANN(
         albedo: Union[Raster, np.ndarray, float],
@@ -176,66 +177,35 @@ def FLiESANN(
 
     KG_climate = ensure_array(KG_climate, shape) if not isinstance(KG_climate, int) else KG_climate
 
-    if zero_COT_correction:
-        COT = np.zeros(albedo.shape, dtype=np.float32)
-    elif COT is None and geometry is not None and time_UTC is not None:
-        COT = GEOS5FP_connection.COT(
-            time_UTC=time_UTC,
-            geometry=geometry,
-            resampling=resampling
-        )
-
-    # constrain COT
-    COT = np.clip(COT, 0, None)  # Ensure COT is non-negative
-    COT = rt.where(COT < 0.001, 0, COT)  # Set very small COT values to 0
+    # Retrieve GEOS-5 FP atmospheric inputs
+    GEOS5FP_inputs = retrieve_FLiESANN_GEOS5FP_inputs(
+        COT=COT,
+        AOT=AOT,
+        vapor_gccm=vapor_gccm,
+        ozone_cm=ozone_cm,
+        geometry=geometry,
+        time_UTC=time_UTC,
+        GEOS5FP_connection=GEOS5FP_connection,
+        resampling=resampling,
+        zero_COT_correction=zero_COT_correction
+    )
     
-    if COT is None:
-        raise ValueError("cloud optical thickness or geometry and time must be given")
-
+    # Extract retrieved values
+    COT = GEOS5FP_inputs["COT"]
+    AOT = GEOS5FP_inputs["AOT"]
+    vapor_gccm = GEOS5FP_inputs["vapor_gccm"]
+    ozone_cm = GEOS5FP_inputs["ozone_cm"]
+    
+    # Store in results
     results["COT"] = COT
-
-    COT = ensure_array(COT, shape)
-    
-    if AOT is None and geometry is not None and time_UTC is not None:
-        AOT = GEOS5FP_connection.AOT(
-            time_UTC=time_UTC,
-            geometry=geometry,
-            resampling=resampling
-        )
-
-    if AOT is None:
-        raise ValueError("aerosol optical thickness or geometry and time must be given")
-
     results["AOT"] = AOT
-
-    AOT = ensure_array(AOT, shape)
-
-    if vapor_gccm is None and geometry is not None and time_UTC is not None:
-        vapor_gccm = GEOS5FP_connection.vapor_gccm(
-            time_UTC=time_UTC,
-            geometry=geometry,
-            resampling=resampling
-        )
-
-    if vapor_gccm is None:
-        raise ValueError("water vapor or geometry and time must be given")
-
     results["vapor_gccm"] = vapor_gccm
-
-    vapor_gccm = ensure_array(vapor_gccm, shape)
-
-    if ozone_cm is None and geometry is not None and time_UTC is not None:
-        ozone_cm = GEOS5FP_connection.ozone_cm(
-            time_UTC=time_UTC,
-            geometry=geometry,
-            resampling=resampling
-        )
-
-    if ozone_cm is None:
-        raise ValueError("ozone concentration or geometry and time must be given")
-
     results["ozone_cm"] = ozone_cm
-
+    
+    # Ensure arrays have correct shape
+    COT = ensure_array(COT, shape)
+    AOT = ensure_array(AOT, shape)
+    vapor_gccm = ensure_array(vapor_gccm, shape)
     ozone_cm = ensure_array(ozone_cm, shape)
 
     if elevation_m is not None:
