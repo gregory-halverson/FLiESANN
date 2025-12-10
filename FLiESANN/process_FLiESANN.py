@@ -184,6 +184,10 @@ def FLiESANN(
             geometry=geometry,
             resampling=resampling
         )
+
+    # constrain COT
+    COT = np.clip(COT, 0, None)  # Ensure COT is non-negative
+    COT = rt.where(COT < 0.001, 0, COT)  # Set very small COT values to 0
     
     if COT is None:
         raise ValueError("cloud optical thickness or geometry and time must be given")
@@ -247,9 +251,8 @@ def FLiESANN(
 
     elevation_km = ensure_array(elevation_km, shape)
 
-    # Preprocess COT and determine aerosol/cloud types
-    COT = np.clip(COT, 0, None)  # Ensure COT is non-negative
-    COT = rt.where(COT < 0.001, 0, COT)  # Set very small COT values to 0
+
+    # determine aerosol/cloud types
     atype = determine_atype(KG_climate, COT)  # Determine aerosol type
     ctype = determine_ctype(KG_climate, COT)  # Determine cloud type
 

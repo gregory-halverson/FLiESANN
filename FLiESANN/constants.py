@@ -20,7 +20,5 @@ GEOS5FP_INPUTS = [
     "COT", 
     "AOT", 
     "vapor_gccm", 
-    "ozone_cm",
-    "wind_speed_mps",
-    "Ca"
+    "ozone_cm"
 ]
