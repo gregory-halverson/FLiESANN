@@ -114,6 +114,7 @@ def process_FLiESANN_table(
                 elevation_m=row.get("elevation_m").item() if row.get("elevation_m") is not None and hasattr(row.get("elevation_m"), 'item') else row.get("elevation_m"),
                 SZA_deg=row.get("SZA").item() if row.get("SZA") is not None and hasattr(row.get("SZA"), 'item') else row.get("SZA"),
                 KG_climate=row.get("KG_climate", row.get("KG")).item() if row.get("KG_climate", row.get("KG")) is not None and hasattr(row.get("KG_climate", row.get("KG")), 'item') else row.get("KG_climate", row.get("KG")),
+                NDVI=row.get("NDVI").item() if row.get("NDVI") is not None and hasattr(row.get("NDVI"), 'item') else row.get("NDVI"),
                 GEOS5FP_connection=GEOS5FP_connection,
                 NASADEM_connection=NASADEM_connection
             )
@@ -161,6 +162,7 @@ def process_FLiESANN_table(
             elevation_m=get_column_or_none(input_df, "elevation_m"),
             SZA_deg=get_column_or_none(input_df, "SZA"),
             KG_climate=get_column_or_none(input_df, "KG_climate", "KG"),
+            NDVI=get_column_or_none(input_df, "NDVI"),
             GEOS5FP_connection=GEOS5FP_connection,
             NASADEM_connection=NASADEM_connection
         )
