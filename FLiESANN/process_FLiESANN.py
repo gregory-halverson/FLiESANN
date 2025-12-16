@@ -314,7 +314,7 @@ def FLiESANN(
     # Run ANN inference to get initial radiative transfer parameters
     prediction_start_time = process_time()
     
-    inference_results = run_FLiESANN_inference(
+    FLiESANN_inference_results = run_FLiESANN_inference(
         atype=atype,
         ctype=ctype,
         COT=COT,
@@ -329,10 +329,11 @@ def FLiESANN(
         split_atypes_ctypes=split_atypes_ctypes
     )
 
-    results.update(inference_results)
+    results.update(FLiESANN_inference_results)
 
     # Record the end time for performance monitoring
     prediction_end_time = process_time()
+    
     # Calculate total time taken for the ANN inference in seconds
     prediction_duration = prediction_end_time - prediction_start_time
 
@@ -406,13 +407,14 @@ def FLiESANN(
     # This represents the total solar radiation reflected back from the surface
     SWout_Wm2 = SWin_Wm2 * albedo
 
-    # Partition spectral albedos based on NDVI if available
+    # Partition spectral albedos using NDVI-based method (only if NDVI is provided)
+    # Use NDVI-based spectral partitioning (Liang 2001, Schaaf et al. 2002)
+    # This accounts for vegetation's distinct spectral signature:
+    # - Low PAR reflectance due to chlorophyll absorption
+    # - High NIR reflectance due to leaf cellular structure
     if NDVI is not None:
-        # Use NDVI-based spectral partitioning (Liang 2001, Schaaf et al. 2002)
-        # This accounts for vegetation's distinct spectral signature:
-        # - Low PAR reflectance due to chlorophyll absorption
-        # - High NIR reflectance due to leaf cellular structure
         NDVI_array = ensure_array(NDVI, shape)
+        
         PAR_albedo, NIR_albedo = partition_spectral_albedo_with_NDVI(
             broadband_albedo=albedo,
             NDVI=NDVI_array,
@@ -426,24 +428,6 @@ def FLiESANN(
         
         # Store NDVI in results
         results["NDVI"] = NDVI
-    else:
-        # Fallback: assume uniform spectral albedo (same as broadband)
-        # This is a first-order approximation when NDVI is not available
-        # Calculate reflected PAR radiation in W/m² by partitioning the upwelling shortwave radiation
-        # using the same spectral proportion as incoming radiation
-        PAR_reflected_Wm2 = SWout_Wm2 * PAR_proportion
-
-        # Calculate reflected NIR radiation in W/m² by partitioning the upwelling shortwave radiation
-        # using the same spectral proportion as incoming radiation
-        NIR_reflected_Wm2 = SWout_Wm2 * NIR_proportion
-
-        # Calculate PAR albedo (fraction of incoming PAR radiation that is reflected)
-        # Using np.clip to ensure values remain in valid range [0, 1] and handle division by zero
-        PAR_albedo = np.clip(rt.where(PAR_Wm2 > 0, PAR_reflected_Wm2 / PAR_Wm2, 0), 0, 1)
-
-        # Calculate NIR albedo (fraction of incoming NIR radiation that is reflected)
-        # Using np.clip to ensure values remain in valid range [0, 1] and handle division by zero
-        NIR_albedo = np.clip(rt.where(NIR_Wm2 > 0, NIR_reflected_Wm2 / NIR_Wm2, 0), 0, 1)
 
     if isinstance(geometry, RasterGeometry):
         SWin_Wm2 = rt.Raster(SWin_Wm2, geometry=geometry)
@@ -456,14 +440,17 @@ def FLiESANN(
         PAR_direct_Wm2 = rt.Raster(PAR_direct_Wm2, geometry=geometry)
         NIR_direct_Wm2 = rt.Raster(NIR_direct_Wm2, geometry=geometry)
         SWout_Wm2 = rt.Raster(SWout_Wm2, geometry=geometry)
-        PAR_reflected_Wm2 = rt.Raster(PAR_reflected_Wm2, geometry=geometry)
-        NIR_reflected_Wm2 = rt.Raster(NIR_reflected_Wm2, geometry=geometry)
-        PAR_albedo = rt.Raster(PAR_albedo, geometry=geometry)
-        NIR_albedo = rt.Raster(NIR_albedo, geometry=geometry)
+        
+        if NDVI is not None:
+            PAR_reflected_Wm2 = rt.Raster(PAR_reflected_Wm2, geometry=geometry)
+            NIR_reflected_Wm2 = rt.Raster(NIR_reflected_Wm2, geometry=geometry)
+            PAR_albedo = rt.Raster(PAR_albedo, geometry=geometry)
+            NIR_albedo = rt.Raster(NIR_albedo, geometry=geometry)
 
     if isinstance(UV_Wm2, Raster):
         UV_Wm2.cmap = UV_CMAP
 
+    # Update the results dictionary with new items instead of replacing it
     # Update the results dictionary with new items instead of replacing it
     results.update({
         "SWin_Wm2": SWin_Wm2,
@@ -472,23 +459,27 @@ def FLiESANN(
         "UV_Wm2": UV_Wm2,
         "PAR_Wm2": PAR_Wm2,
         "NIR_Wm2": NIR_Wm2,
+        "atmospheric_transmittance": atmospheric_transmittance,
+        "UV_proportion": UV_proportion,
+        "UV_diffuse_fraction": UV_diffuse_fraction,
+        "PAR_proportion": PAR_proportion,
+        "NIR_proportion": NIR_proportion,
         "PAR_diffuse_Wm2": PAR_diffuse_Wm2,
         "NIR_diffuse_Wm2": NIR_diffuse_Wm2,
         "PAR_direct_Wm2": PAR_direct_Wm2,
         "NIR_direct_Wm2": NIR_direct_Wm2,
-        "PAR_reflected_Wm2": PAR_reflected_Wm2,
-        "NIR_reflected_Wm2": NIR_reflected_Wm2,
-        "PAR_albedo": PAR_albedo,
-        "NIR_albedo": NIR_albedo,
-        "atmospheric_transmittance": atmospheric_transmittance,
-        "UV_proportion": UV_proportion,
-        "PAR_proportion": PAR_proportion,
-        "NIR_proportion": NIR_proportion,
-        "UV_diffuse_fraction": UV_diffuse_fraction,
         "PAR_diffuse_fraction": PAR_diffuse_fraction,
         "NIR_diffuse_fraction": NIR_diffuse_fraction
     })
-
+    
+    # Add NDVI-derived spectral albedo outputs only if NDVI was provided
+    if NDVI is not None:
+        results.update({
+            "PAR_reflected_Wm2": PAR_reflected_Wm2,
+            "NIR_reflected_Wm2": NIR_reflected_Wm2,
+            "PAR_albedo": PAR_albedo,
+            "NIR_albedo": NIR_albedo
+        })
     # Convert results to Raster objects if raster geometry is given
     if isinstance(geometry, RasterGeometry):
         for key in results.keys():
