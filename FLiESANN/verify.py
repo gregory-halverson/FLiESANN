@@ -29,7 +29,12 @@ def verify() -> bool:
 
     # Columns to compare (model outputs)
     output_columns = [
-        "SWin_Wm2"
+        "SWin_Wm2",
+        "PAR_diffuse_Wm2",
+        "PAR_direct_Wm2",
+        "NIR_diffuse_Wm2",
+        "NIR_direct_Wm2",
+        "UV_Wm2"
     ]
 
     # Compare each output column and collect mismatches
