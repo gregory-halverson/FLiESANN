@@ -29,7 +29,7 @@ def main():
         calval_df,  # Use dataset with atmospheric defaults
         GEOS5FP_connection=GEOS5FP_connection,
         NASADEM_connection=NASADEM_connection,
-        row_wise=True
+        row_wise=False
     )
 
     # Save the processed results to a CSV file
