@@ -301,8 +301,38 @@ def FLiESANN(
     
     # Helper function to filter DataFrame to match location-time pairs
     def filter_dataframe_to_location_time_pairs(df, geometry, time_UTC):
-        """Filter DataFrame returned from GEOS5FP to match original location-time pairs"""
-        if not isinstance(df, pd.DataFrame) or len(df) == len(geometry.geoms):
+        """Filter DataFrame or 2D array returned from GEOS5FP to match original location-time pairs"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f"filter_dataframe called: df type={type(df)}, df.shape={df.shape if isinstance(df, (pd.DataFrame, np.ndarray)) and hasattr(df, 'shape') else 'N/A'}")
+        
+        # Handle DataFrame
+        if isinstance(df, pd.DataFrame):
+            logger.info(f"  DataFrame length={len(df)}, geometry.geoms length={len(geometry.geoms) if hasattr(geometry, 'geoms') else 'N/A'}")
+            
+            if len(df) == len(geometry.geoms):
+                logger.info(f"  Returning DataFrame unchanged (lengths match)")
+                return df
+                
+            # Extract first column (data values) from DataFrame
+            data_array = df.iloc[:, 0].values.astype(np.float32)
+        # Handle 2D numpy array
+        elif isinstance(df, np.ndarray) and len(df.shape) == 2:
+            logger.info(f"  2D array shape={df.shape}, geometry.geoms length={len(geometry.geoms) if hasattr(geometry, 'geoms') else 'N/A'}")
+            
+            if df.shape[0] == len(geometry.geoms) if hasattr(geometry, 'geoms') else 0:
+                logger.info(f"  Returning array unchanged (shapes match)")
+                return df
+            
+            # Extract first column if multiple columns
+            if df.shape[1] > 1:
+                data_array = df[:, 0].astype(np.float32)
+            else:
+                data_array = df.flatten().astype(np.float32)
+        # Handle 1D array or scalar
+        else:
+            logger.info(f"  Not a DataFrame or 2D array, returning unchanged")
             return df
         
         # Get coordinates of input geometry points
@@ -336,19 +366,30 @@ def FLiESANN(
                 selected_rows.append(row_idx)
         
         if len(selected_rows) == len(input_coords):
-            return df.iloc[selected_rows, 0].values.astype(np.float32)
+            result = df.iloc[selected_rows, 0].values.astype(np.float32)
+            logger.info(f"  Filtering succeeded: selected {len(selected_rows)} rows, result shape={result.shape}")
+            return result
         else:
-            # Fallback to first column if filtering fails
-            return df.iloc[:, 0].values.astype(np.float32)
+            result = df.iloc[:, 0].values.astype(np.float32)
+            logger.info(f"  Fallback: returning all rows, result shape={result.shape}")
+            return result
     
-    if isinstance(COT, pd.DataFrame):
+    if isinstance(COT, pd.DataFrame) or (isinstance(COT, np.ndarray) and len(COT.shape) == 2):
         COT = filter_dataframe_to_location_time_pairs(COT, geometry, time_UTC)
-    if isinstance(AOT, pd.DataFrame):
+    if isinstance(AOT, pd.DataFrame) or (isinstance(AOT, np.ndarray) and len(AOT.shape) == 2):
         AOT = filter_dataframe_to_location_time_pairs(AOT, geometry, time_UTC)
-    if isinstance(vapor_gccm, pd.DataFrame):
+    if isinstance(vapor_gccm, pd.DataFrame) or (isinstance(vapor_gccm, np.ndarray) and len(vapor_gccm.shape) == 2):
         vapor_gccm = filter_dataframe_to_location_time_pairs(vapor_gccm, geometry, time_UTC)
-    if isinstance(ozone_cm, pd.DataFrame):
+    if isinstance(ozone_cm, pd.DataFrame) or (isinstance(ozone_cm, np.ndarray) and len(ozone_cm.shape) == 2):
         ozone_cm = filter_dataframe_to_location_time_pairs(ozone_cm, geometry, time_UTC)
+    
+    # Debug: Check types after filtering
+    import logging
+    debug_logger = logging.getLogger(__name__)
+    debug_logger.info(f"After filtering: COT type={type(COT)}, shape={COT.shape if hasattr(COT, 'shape') else 'N/A'}")
+    debug_logger.info(f"After filtering: AOT type={type(AOT)}, shape={AOT.shape if hasattr(AOT, 'shape') else 'N/A'}")
+    debug_logger.info(f"After filtering: vapor_gccm type={type(vapor_gccm)}, shape={vapor_gccm.shape if hasattr(vapor_gccm, 'shape') else 'N/A'}")
+    debug_logger.info(f"After filtering: ozone_cm type={type(ozone_cm)}, shape={ozone_cm.shape if hasattr(ozone_cm, 'shape') else 'N/A'}")
     
     # Store in results (after DataFrame conversion)
     results["COT"] = COT
@@ -357,10 +398,11 @@ def FLiESANN(
     results["ozone_cm"] = ozone_cm
     
     # Update shape based on actual retrieved data arrays (after DataFrame conversion)
-    # This handles cases where time-series data creates additional dimensions
-    # Skip DataFrames when determining shape - they should have been converted above
-    import pandas as pd
-    if hasattr(COT, 'shape') and not isinstance(COT, pd.DataFrame):
+    # For MultiPoint geometries, use the original shape (number of points)
+    # For raster geometries, use the shape of retrieved data
+    if isinstance(geometry, (shapely.geometry.MultiPoint, rt.MultiPoint)):
+        actual_shape = (len(geometry.geoms),) if hasattr(geometry, 'geoms') else shape
+    elif hasattr(COT, 'shape') and not isinstance(COT, pd.DataFrame):
         actual_shape = COT.shape
     elif hasattr(AOT, 'shape') and not isinstance(AOT, pd.DataFrame):
         actual_shape = AOT.shape
@@ -383,6 +425,14 @@ def FLiESANN(
     SZA_deg = ensure_array(SZA_deg, actual_shape)
     day_of_year = ensure_array(day_of_year, actual_shape)
     SWin_Wm2 = ensure_array(SWin_Wm2, actual_shape)
+    
+    # Debug: print shapes
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"After ensure_array: actual_shape={actual_shape}")
+    logger.info(f"  COT.shape={COT.shape if hasattr(COT, 'shape') else 'scalar'}")
+    logger.info(f"  albedo.shape={albedo.shape if hasattr(albedo, 'shape') else 'scalar'}")
+    logger.info(f"  SZA_deg.shape={SZA_deg.shape if hasattr(SZA_deg, 'shape') else 'scalar'}")
 
     # determine aerosol/cloud types
     atype = determine_atype(KG_climate, COT)  # Determine aerosol type
