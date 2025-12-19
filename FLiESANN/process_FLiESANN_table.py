@@ -127,11 +127,9 @@ def process_FLiESANN_table(
 
     # Add results to the output DataFrame
     for key, values in FLiES_results.items():
-        # Debug: check the length of values
+        # Skip values with mismatched lengths
         if hasattr(values, '__len__') and not isinstance(values, str):
             if len(values) != len(output_df):
-                logger.warning(f"Skipping key '{key}' with mismatched length: expected {len(output_df)}, got {len(values)}")
-                logger.warning(f"  values type: {type(values)}, values: {values}")
                 continue
         output_df[key] = values
 
