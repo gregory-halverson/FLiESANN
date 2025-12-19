@@ -25,7 +25,7 @@ def verify() -> bool:
     output_df = load_ECOv002_calval_FLiESANN_outputs()
 
     # Run the model on the input table
-    model_df = process_FLiESANN_table(input_df, row_wise=False)
+    model_df = process_FLiESANN_table(input_df)
 
     # Columns to compare (model outputs)
     output_columns = [
