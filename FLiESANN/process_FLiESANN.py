@@ -273,8 +273,6 @@ def FLiESANN(
     results["elevation_m"] = elevation_m
     results["KG_climate"] = KG_climate
 
-    KG_climate = ensure_array(KG_climate, shape) if not isinstance(KG_climate, int) else KG_climate
-
     # Retrieve GEOS-5 FP atmospheric inputs
     GEOS5FP_inputs = retrieve_FLiESANN_GEOS5FP_inputs(
         COT=COT,
@@ -294,18 +292,46 @@ def FLiESANN(
     vapor_gccm = GEOS5FP_inputs["vapor_gccm"]
     ozone_cm = GEOS5FP_inputs["ozone_cm"]
     
-    # Store in results
+    # Convert DataFrames to arrays first (if they are DataFrames)
+    # This is necessary because GEOS5FP returns DataFrames for time-series data
+    import pandas as pd
+    if isinstance(COT, pd.DataFrame):
+        COT = COT.iloc[:, 0].values.astype(np.float32)
+    if isinstance(AOT, pd.DataFrame):
+        AOT = AOT.iloc[:, 0].values.astype(np.float32)
+    if isinstance(vapor_gccm, pd.DataFrame):
+        vapor_gccm = vapor_gccm.iloc[:, 0].values.astype(np.float32)
+    if isinstance(ozone_cm, pd.DataFrame):
+        ozone_cm = ozone_cm.iloc[:, 0].values.astype(np.float32)
+    
+    # Store in results (after DataFrame conversion)
     results["COT"] = COT
     results["AOT"] = AOT
     results["vapor_gccm"] = vapor_gccm
     results["ozone_cm"] = ozone_cm
     
+    # Update shape based on actual retrieved data arrays (after DataFrame conversion)
+    # This handles cases where time-series data creates additional dimensions
+    # Skip DataFrames when determining shape - they should have been converted above
+    import pandas as pd
+    if hasattr(COT, 'shape') and not isinstance(COT, pd.DataFrame):
+        actual_shape = COT.shape
+    elif hasattr(AOT, 'shape') and not isinstance(AOT, pd.DataFrame):
+        actual_shape = AOT.shape
+    elif hasattr(vapor_gccm, 'shape') and not isinstance(vapor_gccm, pd.DataFrame):
+        actual_shape = vapor_gccm.shape
+    elif hasattr(ozone_cm, 'shape') and not isinstance(ozone_cm, pd.DataFrame):
+        actual_shape = ozone_cm.shape
+    else:
+        actual_shape = shape
+    
     # Ensure arrays have correct shape
-    COT = ensure_array(COT, shape)
-    AOT = ensure_array(AOT, shape)
-    vapor_gccm = ensure_array(vapor_gccm, shape)
-    ozone_cm = ensure_array(ozone_cm, shape)
-    elevation_km = ensure_array(elevation_km, shape)
+    KG_climate = ensure_array(KG_climate, actual_shape) if not isinstance(KG_climate, int) else KG_climate
+    COT = ensure_array(COT, actual_shape)
+    AOT = ensure_array(AOT, actual_shape)
+    vapor_gccm = ensure_array(vapor_gccm, actual_shape)
+    ozone_cm = ensure_array(ozone_cm, actual_shape)
+    elevation_km = ensure_array(elevation_km, actual_shape)
 
     # determine aerosol/cloud types
     atype = determine_atype(KG_climate, COT)  # Determine aerosol type
