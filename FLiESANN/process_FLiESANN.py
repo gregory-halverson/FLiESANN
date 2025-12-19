@@ -294,15 +294,61 @@ def FLiESANN(
     
     # Convert DataFrames to arrays first (if they are DataFrames)
     # This is necessary because GEOS5FP returns DataFrames for time-series data
+    # When processing multiple location-time pairs, GEOS5FP returns a DataFrame with
+    # rows for each unique time at each location, creating a Cartesian product.
+    # We need to filter to match only the original location-time pairs.
     import pandas as pd
+    
+    # Helper function to filter DataFrame to match location-time pairs
+    def filter_dataframe_to_location_time_pairs(df, geometry, time_UTC):
+        """Filter DataFrame returned from GEOS5FP to match original location-time pairs"""
+        if not isinstance(df, pd.DataFrame) or len(df) == len(geometry.geoms):
+            return df
+        
+        # Get coordinates of input geometry points
+        if isinstance(geometry, (shapely.geometry.MultiPoint, rt.MultiPoint)):
+            input_coords = [(geom.x, geom.y) for geom in geometry.geoms]
+        else:
+            return df
+        
+        # Convert time_UTC to array if it's a single value
+        if not hasattr(time_UTC, '__len__'):
+            time_UTC_array = [time_UTC] * len(input_coords)
+        else:
+            time_UTC_array = time_UTC
+        
+        # For each input location-time pair, find the matching DataFrame row
+        # GEOS5FP processes unique times and returns data for all locations at each time
+        # We need to select only the rows that match our specific location-time pairs
+        
+        # Create a mapping of (lat, lon, time_index) -> row index
+        # The DataFrame contains all locations for each unique time
+        unique_times = sorted(set(pd.to_datetime(time_UTC_array)))
+        time_to_index = {t: i for i, t in enumerate(unique_times)}
+        
+        selected_rows = []
+        for i, (coord, time_val) in enumerate(zip(input_coords, time_UTC_array)):
+            time_val = pd.to_datetime(time_val)
+            time_idx = time_to_index[time_val]
+            # Row index = time_idx * num_locations + location_idx
+            row_idx = time_idx * len(input_coords) + i
+            if row_idx < len(df):
+                selected_rows.append(row_idx)
+        
+        if len(selected_rows) == len(input_coords):
+            return df.iloc[selected_rows, 0].values.astype(np.float32)
+        else:
+            # Fallback to first column if filtering fails
+            return df.iloc[:, 0].values.astype(np.float32)
+    
     if isinstance(COT, pd.DataFrame):
-        COT = COT.iloc[:, 0].values.astype(np.float32)
+        COT = filter_dataframe_to_location_time_pairs(COT, geometry, time_UTC)
     if isinstance(AOT, pd.DataFrame):
-        AOT = AOT.iloc[:, 0].values.astype(np.float32)
+        AOT = filter_dataframe_to_location_time_pairs(AOT, geometry, time_UTC)
     if isinstance(vapor_gccm, pd.DataFrame):
-        vapor_gccm = vapor_gccm.iloc[:, 0].values.astype(np.float32)
+        vapor_gccm = filter_dataframe_to_location_time_pairs(vapor_gccm, geometry, time_UTC)
     if isinstance(ozone_cm, pd.DataFrame):
-        ozone_cm = ozone_cm.iloc[:, 0].values.astype(np.float32)
+        ozone_cm = filter_dataframe_to_location_time_pairs(ozone_cm, geometry, time_UTC)
     
     # Store in results (after DataFrame conversion)
     results["COT"] = COT
@@ -332,10 +378,19 @@ def FLiESANN(
     vapor_gccm = ensure_array(vapor_gccm, actual_shape)
     ozone_cm = ensure_array(ozone_cm, actual_shape)
     elevation_km = ensure_array(elevation_km, actual_shape)
+    elevation_m = ensure_array(elevation_m, actual_shape)
+    albedo = ensure_array(albedo, actual_shape)
+    SZA_deg = ensure_array(SZA_deg, actual_shape)
+    day_of_year = ensure_array(day_of_year, actual_shape)
+    SWin_Wm2 = ensure_array(SWin_Wm2, actual_shape)
 
     # determine aerosol/cloud types
     atype = determine_atype(KG_climate, COT)  # Determine aerosol type
     ctype = determine_ctype(KG_climate, COT)  # Determine cloud type
+    
+    # Ensure atype and ctype match actual_shape
+    atype = ensure_array(atype, actual_shape)
+    ctype = ensure_array(ctype, actual_shape)
 
     # Run ANN inference to get initial radiative transfer parameters
     prediction_start_time = process_time()
@@ -439,7 +494,7 @@ def FLiESANN(
     # - Low PAR reflectance due to chlorophyll absorption
     # - High NIR reflectance due to leaf cellular structure
     if NDVI is not None:
-        NDVI_array = ensure_array(NDVI, shape)
+        NDVI_array = ensure_array(NDVI, actual_shape)
         
         PAR_albedo, NIR_albedo = partition_spectral_albedo_with_NDVI(
             broadband_albedo=albedo,

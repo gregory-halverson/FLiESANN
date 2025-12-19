@@ -20,16 +20,15 @@ def main():
     calval_df = calval_df[calval_df['date_UTC'] == first_date]
 
     # Initialize connections for GEOS5FP and NASADEM data
-    GEOS5FP_connection = GEOS5FP(download_directory="GEOS5FP_download")
-    NASADEM_connection = NASADEMConnection(download_directory="NASADEM_download")
+    GEOS5FP_connection = GEOS5FP()
+    NASADEM_connection = NASADEMConnection()
 
     # Process the filtered dataset with atmospheric parameter defaults
     # Defaults: COT=0, AOT=0, vapor_gccm=0, ozone_cm=0.3
     results_df = process_FLiESANN_table(
         calval_df,  # Use dataset with atmospheric defaults
         GEOS5FP_connection=GEOS5FP_connection,
-        NASADEM_connection=NASADEM_connection,
-        row_wise=False
+        NASADEM_connection=NASADEM_connection
     )
 
     # Save the processed results to a CSV file
