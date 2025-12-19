@@ -273,8 +273,6 @@ def FLiESANN(
     results["elevation_m"] = elevation_m
     results["KG_climate"] = KG_climate
 
-    KG_climate = ensure_array(KG_climate, shape) if not isinstance(KG_climate, int) else KG_climate
-
     # Retrieve GEOS-5 FP atmospheric inputs
     GEOS5FP_inputs = retrieve_FLiESANN_GEOS5FP_inputs(
         COT=COT,
@@ -294,22 +292,125 @@ def FLiESANN(
     vapor_gccm = GEOS5FP_inputs["vapor_gccm"]
     ozone_cm = GEOS5FP_inputs["ozone_cm"]
     
-    # Store in results
+    # Convert DataFrames to arrays first (if they are DataFrames)
+    # This is necessary because GEOS5FP returns DataFrames for time-series data
+    # When processing multiple location-time pairs, GEOS5FP returns a DataFrame with
+    # rows for each unique time at each location, creating a Cartesian product.
+    # We need to filter to match only the original location-time pairs.
+    import pandas as pd
+    
+    # Helper function to filter DataFrame to match location-time pairs
+    def filter_dataframe_to_location_time_pairs(df, geometry, time_UTC):
+        """Filter DataFrame or 2D array returned from GEOS5FP to match original location-time pairs"""
+        
+        # Handle DataFrame
+        if isinstance(df, pd.DataFrame):
+            if len(df) == len(geometry.geoms):
+                return df
+                
+            # Extract first column (data values) from DataFrame
+            data_array = df.iloc[:, 0].values.astype(np.float32)
+        # Handle 2D numpy array
+        elif isinstance(df, np.ndarray) and len(df.shape) == 2:
+            if df.shape[0] == (len(geometry.geoms) if hasattr(geometry, 'geoms') else 0):
+                return df
+            
+            # Extract first column if multiple columns
+            if df.shape[1] > 1:
+                data_array = df[:, 0].astype(np.float32)
+            else:
+                data_array = df.flatten().astype(np.float32)
+        # Handle 1D array or scalar
+        else:
+            return df
+        
+        # Get coordinates of input geometry points
+        if isinstance(geometry, (shapely.geometry.MultiPoint, rt.MultiPoint)):
+            input_coords = [(geom.x, geom.y) for geom in geometry.geoms]
+        else:
+            return df
+        
+        # Convert time_UTC to array if it's a single value
+        if not hasattr(time_UTC, '__len__'):
+            time_UTC_array = [time_UTC] * len(input_coords)
+        else:
+            time_UTC_array = time_UTC
+        
+        # For each input location-time pair, find the matching DataFrame row
+        # GEOS5FP processes unique times and returns data for all locations at each time
+        # We need to select only the rows that match our specific location-time pairs
+        
+        # Create a mapping of (lat, lon, time_index) -> row index
+        # The DataFrame contains all locations for each unique time
+        unique_times = sorted(set(pd.to_datetime(time_UTC_array)))
+        time_to_index = {t: i for i, t in enumerate(unique_times)}
+        
+        selected_rows = []
+        for i, (coord, time_val) in enumerate(zip(input_coords, time_UTC_array)):
+            time_val = pd.to_datetime(time_val)
+            time_idx = time_to_index[time_val]
+            # Row index = time_idx * num_locations + location_idx
+            row_idx = time_idx * len(input_coords) + i
+            if row_idx < len(data_array):
+                selected_rows.append(row_idx)
+        
+        if len(selected_rows) == len(input_coords):
+            return data_array[selected_rows].astype(np.float32)
+        else:
+            # Fallback: return all rows if filtering fails
+            return data_array.astype(np.float32)
+    
+    if isinstance(COT, pd.DataFrame) or (isinstance(COT, np.ndarray) and len(COT.shape) == 2):
+        COT = filter_dataframe_to_location_time_pairs(COT, geometry, time_UTC)
+    if isinstance(AOT, pd.DataFrame) or (isinstance(AOT, np.ndarray) and len(AOT.shape) == 2):
+        AOT = filter_dataframe_to_location_time_pairs(AOT, geometry, time_UTC)
+    if isinstance(vapor_gccm, pd.DataFrame) or (isinstance(vapor_gccm, np.ndarray) and len(vapor_gccm.shape) == 2):
+        vapor_gccm = filter_dataframe_to_location_time_pairs(vapor_gccm, geometry, time_UTC)
+    if isinstance(ozone_cm, pd.DataFrame) or (isinstance(ozone_cm, np.ndarray) and len(ozone_cm.shape) == 2):
+        ozone_cm = filter_dataframe_to_location_time_pairs(ozone_cm, geometry, time_UTC)
+    
+    # Store in results (after DataFrame conversion)
     results["COT"] = COT
     results["AOT"] = AOT
     results["vapor_gccm"] = vapor_gccm
     results["ozone_cm"] = ozone_cm
     
+    # Update shape based on actual retrieved data arrays (after DataFrame conversion)
+    # For MultiPoint geometries, use the original shape (number of points)
+    # For raster geometries, use the shape of retrieved data
+    if isinstance(geometry, (shapely.geometry.MultiPoint, rt.MultiPoint)):
+        actual_shape = (len(geometry.geoms),) if hasattr(geometry, 'geoms') else shape
+    elif hasattr(COT, 'shape') and not isinstance(COT, pd.DataFrame):
+        actual_shape = COT.shape
+    elif hasattr(AOT, 'shape') and not isinstance(AOT, pd.DataFrame):
+        actual_shape = AOT.shape
+    elif hasattr(vapor_gccm, 'shape') and not isinstance(vapor_gccm, pd.DataFrame):
+        actual_shape = vapor_gccm.shape
+    elif hasattr(ozone_cm, 'shape') and not isinstance(ozone_cm, pd.DataFrame):
+        actual_shape = ozone_cm.shape
+    else:
+        actual_shape = shape
+    
     # Ensure arrays have correct shape
-    COT = ensure_array(COT, shape)
-    AOT = ensure_array(AOT, shape)
-    vapor_gccm = ensure_array(vapor_gccm, shape)
-    ozone_cm = ensure_array(ozone_cm, shape)
-    elevation_km = ensure_array(elevation_km, shape)
+    KG_climate = ensure_array(KG_climate, actual_shape) if not isinstance(KG_climate, int) else KG_climate
+    COT = ensure_array(COT, actual_shape)
+    AOT = ensure_array(AOT, actual_shape)
+    vapor_gccm = ensure_array(vapor_gccm, actual_shape)
+    ozone_cm = ensure_array(ozone_cm, actual_shape)
+    elevation_km = ensure_array(elevation_km, actual_shape)
+    elevation_m = ensure_array(elevation_m, actual_shape)
+    albedo = ensure_array(albedo, actual_shape)
+    SZA_deg = ensure_array(SZA_deg, actual_shape)
+    day_of_year = ensure_array(day_of_year, actual_shape)
+    SWin_Wm2 = ensure_array(SWin_Wm2, actual_shape)
 
     # determine aerosol/cloud types
     atype = determine_atype(KG_climate, COT)  # Determine aerosol type
     ctype = determine_ctype(KG_climate, COT)  # Determine cloud type
+    
+    # Ensure atype and ctype match actual_shape
+    atype = ensure_array(atype, actual_shape)
+    ctype = ensure_array(ctype, actual_shape)
 
     # Run ANN inference to get initial radiative transfer parameters
     prediction_start_time = process_time()
@@ -413,7 +514,7 @@ def FLiESANN(
     # - Low PAR reflectance due to chlorophyll absorption
     # - High NIR reflectance due to leaf cellular structure
     if NDVI is not None:
-        NDVI_array = ensure_array(NDVI, shape)
+        NDVI_array = ensure_array(NDVI, actual_shape)
         
         PAR_albedo, NIR_albedo = partition_spectral_albedo_with_NDVI(
             broadband_albedo=albedo,
