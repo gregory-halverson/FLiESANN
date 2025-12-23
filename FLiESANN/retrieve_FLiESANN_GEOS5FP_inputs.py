@@ -6,6 +6,8 @@ from rasters import Raster, RasterGeometry
 from GEOS5FP import GEOS5FP
 import shapely
 
+from .constants import *
+
 
 def retrieve_FLiESANN_GEOS5FP_inputs(
         COT: Union[Raster, np.ndarray, float] = None,
@@ -15,8 +17,8 @@ def retrieve_FLiESANN_GEOS5FP_inputs(
         geometry: Union[RasterGeometry, shapely.geometry.Point, rt.Point, shapely.geometry.MultiPoint, rt.MultiPoint] = None,
         time_UTC: datetime = None,
         GEOS5FP_connection: GEOS5FP = None,
-        resampling: str = "cubic",
-        zero_COT_correction: bool = False) -> dict:
+        resampling: str = DEFAULT_RESAMPLING,
+        zero_COT_correction: bool = ZERO_COT_CORRECTION) -> dict:
     """
     Retrieve GEOS-5 FP atmospheric inputs for FLiESANN model.
     

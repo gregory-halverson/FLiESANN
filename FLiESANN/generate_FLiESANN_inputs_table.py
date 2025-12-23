@@ -1,163 +1,139 @@
-from dateutil import parser
+import logging
 
 import numpy as np
 import pandas as pd
 import rasters as rt
-
+from dateutil import parser
+from pandas import DataFrame
+from rasters import MultiPoint, WGS84
+from shapely.geometry import Point
 from GEOS5FP import GEOS5FP
-from sentinel_tiles import sentinel_tiles
-from sun_angles import calculate_SZA_from_datetime
-from koppengeiger import load_koppen_geiger
-
-import logging
+from NASADEM import NASADEMConnection
+from .retrieve_FLiESANN_inputs import retrieve_FLiESANN_inputs
 
 logger = logging.getLogger(__name__)
 
-def generate_FLiES_inputs_table(
-        FLiES_inputs_from_calval_df: pd.DataFrame,
-        GEOS5FP_connection: GEOS5FP = None) -> pd.DataFrame:
+def generate_FLiESANN_inputs_table(
+        input_df: DataFrame,
+        GEOS5FP_connection: GEOS5FP = None,
+        NASADEM_connection: NASADEMConnection = None) -> DataFrame:
     """
-    FLiES_inputs_from_claval_df:
-        Pandas DataFrame containing the columns: tower, lat, lon, time_UTC, albedo, elevation_km
-    return:
-        Pandas DataFrame containing the columns: tower, lat, lon, time_UTC, doy, albedo, elevation_km, AOT, COT, vapor_gccm, ozone_cm, SZA, KG
+    Generates a DataFrame of FLiES inputs by retrieving atmospheric and static data.
+    
+    This is a simple wrapper around retrieve_FLiESANN_inputs that handles DataFrame
+    input/output and geometry parsing.
+
+    Parameters:
+    input_df (pd.DataFrame): A DataFrame containing the following columns:
+        - time_UTC (str or datetime): Time in UTC.
+        - geometry (str or shapely.geometry.Point) or (lat, lon): Spatial coordinates. 
+          If "geometry" is a string, it should be in WKT format (e.g., "POINT (lon lat)").
+        - albedo (float, optional): Surface albedo.
+        - COT (float, optional): Cloud optical thickness.
+        - AOT (float, optional): Aerosol optical thickness.
+        - vapor_gccm (float, optional): Water vapor in grams per cubic centimeter.
+        - ozone_cm (float, optional): Ozone concentration in centimeters.
+        - elevation_m (float, optional): Elevation in meters.
+        - SZA_deg (float, optional): Solar zenith angle in degrees.
+        - KG or KG_climate (str, optional): Köppen-Geiger climate classification.
+        - SWin_Wm2 (float, optional): Shortwave incoming solar radiation.
+        - day_of_year (float, optional): Day of year.
+        - hour_of_day (float, optional): Hour of day.
+    GEOS5FP_connection (GEOS5FP, optional): Connection object for GEOS-5 FP data.
+    NASADEM_connection (NASADEMConnection, optional): Connection object for NASADEM data.
+
+    Returns:
+    pd.DataFrame: A DataFrame with the same structure as the input, but with additional columns:
+        - albedo: Surface albedo array
+        - COT: Cloud optical thickness array
+        - AOT: Aerosol optical thickness array
+        - vapor_gccm: Water vapor array
+        - ozone_cm: Ozone concentration array
+        - elevation_m: Elevation in meters array
+        - elevation_km: Elevation in kilometers array
+        - KG_climate: Climate classification array
+        - SZA_deg: Solar zenith angle array
+        - SWin_Wm2: Shortwave incoming radiation array
+        - day_of_year: Day of year array
+        - atype: Aerosol type array
+        - ctype: Cloud type array
+
+    Raises:
+    KeyError: If required columns ("geometry" or "lat" and "lon") are missing.
     """
-    if GEOS5FP_connection is None:
-        GEOS5FP_connection = GEOS5FP()
+    def ensure_geometry(row):
+        if "geometry" in row:
+            if isinstance(row.geometry, str):
+                s = row.geometry.strip()
+                if s.startswith("POINT"):
+                    coords = s.replace("POINT", "").replace("(", "").replace(")", "").strip().split()
+                    return Point(float(coords[0]), float(coords[1]))
+                elif "," in s:
+                    coords = [float(c) for c in s.split(",")]
+                    return Point(coords[0], coords[1])
+                else:
+                    coords = [float(c) for c in s.split()]
+                    return Point(coords[0], coords[1])
+        return row.geometry
 
-    # output_rows = []
-    FLiES_inputs_df = FLiES_inputs_from_calval_df.copy()
+    logger.info("started generating FLiES input table")
 
-    doy = []
-    AOT = []
-    COT = []
-    vapor_gccm = []
-    ozone_cm = []
-    SWin = []
-    Tmin_K = []
-    SZA = []
-    KG = []
+    # Ensure geometry column is properly formatted
+    input_df = input_df.copy()
+    input_df["geometry"] = input_df.apply(ensure_geometry, axis=1)
 
-    for i, input_row in FLiES_inputs_from_calval_df.iterrows():
-        tower = input_row.tower
-        lat = input_row.lat
-        lon = input_row.lon
-        time_UTC = input_row.time_UTC
-        albedo = input_row.albedo
-        elevation_km = input_row.elevation_km
-        logger.info(f"collecting FLiES inputs for tower {tower} lat {lat} lon {lon} time {time_UTC} UTC")
-        time_UTC = parser.parse(str(time_UTC))
-        doy.append(time_UTC.timetuple().tm_yday)
-        date_UTC = time_UTC.date()
-        tile = sentinel_tiles.toMGRS(lat, lon)[:5]
-
-        try:
-            tile_grid = sentinel_tiles.grid(tile=tile, cell_size=70)
-        except Exception as e:
-            logger.error(e)
-            logger.warning(f"unable to process tile {tile}")
-            AOT.append(np.nan)
-            COT.append(np.nan)
-            vapor_gccm.append(np.nan)
-            ozone_cm.append(np.nan)
-            SZA.append(np.nan)
-            KG.append(np.nan)
-            continue
-
-        rows, cols = tile_grid.shape
-        row, col = tile_grid.index_point(rt.Point(lon, lat))
-        geometry = tile_grid[max(0, row - 1):min(row + 2, rows - 1),
-                             max(0, col - 1):min(col + 2, cols - 1)]
-
-        if not "AOT" in FLiES_inputs_from_calval_df.columns:
-            try:
-                logger.info("retrieving GEOS-5 FP aerosol optical thickness raster")
-                AOT.append(np.nanmedian(GEOS5FP_connection.AOT(time_UTC=time_UTC, geometry=geometry)))
-            except Exception as e:
-                AOT.append(np.nan)
-                logger.exception(e)
-
-        if not "COT" in FLiES_inputs_from_calval_df.columns:
-            try:
-                logger.info("generating GEOS-5 FP cloud optical thickness raster")
-                COT.append(np.nanmedian(GEOS5FP_connection.COT(time_UTC=time_UTC, geometry=geometry)))
-            except Exception as e:
-                COT.append(np.nan)
-                logger.exception(e)
-        
-        if not "vapor_gccm" in FLiES_inputs_from_calval_df.columns:
-            try:
-                logger.info("generating GEOS5-FP water vapor raster in grams per square centimeter")
-                vapor_gccm.append(np.nanmedian(GEOS5FP_connection.vapor_gccm(time_UTC=time_UTC, geometry=geometry)))
-            except Exception as e:
-                vapor_gccm.append(np.nan)
-                logger.exception(e)
-
-        if not "ozone_cm" in FLiES_inputs_from_calval_df.columns:
-            try:
-                logger.info("generating GEOS5-FP ozone raster in grams per square centimeter")
-                ozone_cm.append(np.nanmedian(GEOS5FP_connection.ozone_cm(time_UTC=time_UTC, geometry=geometry)))
-            except Exception as e:
-                ozone_cm.append(np.nan)
-                logger.exception(e)
-        
-        if not "SWin" in FLiES_inputs_from_calval_df.columns:
-            try:
-                logger.info("generating GEOS5-FP incoming solar radiation raster in watts per square meter")
-                SWin.append(np.nanmedian(GEOS5FP_connection.SWin(time_UTC=time_UTC, geometry=geometry)))
-            except Exception as e:
-                SWin.append(np.nan)
-                logger.exception(e)
-
-        if not "Tmin_K" in FLiES_inputs_from_calval_df.columns:
-            try:
-                logger.info("generating GEOS5-FP minimum temperature in Kelvin")
-                Tmin_K.append(np.nanmedian(GEOS5FP_connection.Tmin_K(time_UTC=time_UTC, geometry=geometry)))
-            except Exception as e:
-                Tmin_K.append(np.nan)
-                logger.exception(e)
-
-        if not "SZA" in FLiES_inputs_from_calval_df.columns:
-            try:
-                logger.info("calculating solar zenith angle")
-                SZA.append(calculate_SZA_from_datetime(time_UTC, lat, lon))
-            except Exception as e:
-                SZA.append(np.nan)
-                logger.exception(e)
-
-        if not "KG" in FLiES_inputs_from_calval_df.columns:
-            try:
-                logger.info("selecting Koppen Geiger climate classification")
-                KG.append(load_koppen_geiger(geometry=geometry)[1, 1][0][0])
-            except Exception as e:
-                KG.append(np.nan)
-                logger.exception(e)
-
-    if not "doy" in FLiES_inputs_df.columns:
-        FLiES_inputs_df["doy"] = doy
-
-    if not "AOT" in FLiES_inputs_df.columns:
-        FLiES_inputs_df["AOT"] = AOT
+    # Prepare output DataFrame
+    output_df = input_df.copy()
     
-    if not "COT" in FLiES_inputs_df.columns:
-        FLiES_inputs_df["COT"] = COT
+    # Prepare geometries
+    if "geometry" in input_df.columns:
+        geometries = MultiPoint([(geom.x, geom.y) for geom in input_df.geometry], crs=WGS84)
+    elif "lat" in input_df.columns and "lon" in input_df.columns:
+        geometries = MultiPoint([(lon, lat) for lon, lat in zip(input_df.lon, input_df.lat)], crs=WGS84)
+    else:
+        raise KeyError("Input DataFrame must contain either 'geometry' or both 'lat' and 'lon' columns.")
     
-    if not "vapor_gccm" in FLiES_inputs_df.columns:
-        FLiES_inputs_df["vapor_gccm"] = vapor_gccm
+    # Convert time column to datetime
+    times_UTC = pd.to_datetime(input_df.time_UTC)
+    
+    logger.info(f"generating inputs for {len(input_df)} rows")
 
-    if not "ozone_cm" in FLiES_inputs_df.columns:
-        FLiES_inputs_df["ozone_cm"] = ozone_cm
-    
-    FLiES_inputs_df["SWin"] = SWin
-    FLiES_inputs_df["Tmin_K"] = Tmin_K 
-    
-    if not "SZA" in FLiES_inputs_df.columns:
-        FLiES_inputs_df["SZA"] = SZA
-    
-    if not "KG" in FLiES_inputs_df.columns:
-        FLiES_inputs_df["KG"] = KG
-    
-    if "Ta" in FLiES_inputs_df and "Ta_C" not in FLiES_inputs_df:
-        FLiES_inputs_df.rename({"Ta": "Ta_C"}, inplace=True)
-    
-    return FLiES_inputs_df
+    # Helper function to get column values or None if column doesn't exist
+    def get_column_or_none(df, col_name, default_col_name=None):
+        if col_name in df.columns:
+            return df[col_name].values
+        elif default_col_name and default_col_name in df.columns:
+            return df[default_col_name].values
+        else:
+            return None
+
+    # Retrieve all inputs at once using vectorized retrieve_FLiESANN_inputs call
+    FLiES_inputs = retrieve_FLiESANN_inputs(
+        geometry=geometries,
+        time_UTC=times_UTC,
+        albedo=get_column_or_none(input_df, "albedo"),
+        COT=get_column_or_none(input_df, "COT"),
+        AOT=get_column_or_none(input_df, "AOT"),
+        vapor_gccm=get_column_or_none(input_df, "vapor_gccm"),
+        ozone_cm=get_column_or_none(input_df, "ozone_cm"),
+        elevation_m=get_column_or_none(input_df, "elevation_m"),
+        SZA_deg=get_column_or_none(input_df, "SZA_deg", "SZA"),
+        KG_climate=get_column_or_none(input_df, "KG_climate", "KG"),
+        SWin_Wm2=get_column_or_none(input_df, "SWin_Wm2"),
+        day_of_year=get_column_or_none(input_df, "day_of_year"),
+        hour_of_day=get_column_or_none(input_df, "hour_of_day"),
+        GEOS5FP_connection=GEOS5FP_connection,
+        NASADEM_connection=NASADEM_connection
+    )
+
+    # Add retrieved inputs to the output DataFrame
+    for key, values in FLiES_inputs.items():
+        # Skip values with mismatched lengths
+        if hasattr(values, '__len__') and not isinstance(values, str):
+            if len(values) != len(output_df):
+                continue
+        output_df[key] = values
+
+    logger.info("completed generating FLiES input table")
+
+    return output_df

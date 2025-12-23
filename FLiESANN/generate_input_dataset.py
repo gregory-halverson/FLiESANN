@@ -10,7 +10,7 @@ from os.path import abspath, dirname, join
 import pandas as pd
 from GEOS5FP import GEOS5FP
 from ECOv002_calval_tables import load_calval_table
-from FLiESANN import generate_FLiES_inputs_table, process_FLiESANN_table
+from FLiESANN import generate_FLiESANN_inputs_table, process_FLiESANN_table
 
 import logging
 
@@ -38,7 +38,7 @@ def generate_input_dataset():
     GEOS5FP_connection = GEOS5FP()
 
     # Generate FLiES inputs table with atmospheric parameters from GEOS-5 FP
-    inputs_df = generate_FLiES_inputs_table(
+    inputs_df = generate_FLiESANN_inputs_table(
         inputs_df,
         GEOS5FP_connection=GEOS5FP_connection
     )

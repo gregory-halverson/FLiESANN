@@ -16,27 +16,27 @@ from .retrieve_FLiESANN_GEOS5FP_inputs import retrieve_FLiESANN_GEOS5FP_inputs
 from .filter_dataframe_to_location_time_pairs import filter_dataframe_to_location_time_pairs
 from .determine_atype import determine_atype
 from .determine_ctype import determine_ctype
-from .constants import ZERO_COT_CORRECTION
+from .constants import *
 
 
 def retrieve_FLiESANN_inputs(
-        albedo: Union[Raster, np.ndarray, float],
-        COT: Union[Raster, np.ndarray, float],
-        AOT: Union[Raster, np.ndarray, float],
-        vapor_gccm: Union[Raster, np.ndarray, float],
-        ozone_cm: Union[Raster, np.ndarray, float],
-        elevation_m: Union[Raster, np.ndarray, float],
-        SZA_deg: Union[Raster, np.ndarray, float],
-        KG_climate: Union[Raster, np.ndarray, int],
-        SWin_Wm2: Union[Raster, np.ndarray, float],
-        geometry: Union[RasterGeometry, shapely.geometry.Point, rt.Point, shapely.geometry.MultiPoint, rt.MultiPoint],
-        time_UTC: datetime,
-        day_of_year: Union[Raster, np.ndarray, float],
-        hour_of_day: Union[Raster, np.ndarray, float],
-        GEOS5FP_connection: GEOS5FP,
-        NASADEM_connection: NASADEMConnection,
-        resampling: str,
-        zero_COT_correction: bool) -> dict:
+        albedo: Union[Raster, np.ndarray, float] = None,
+        COT: Union[Raster, np.ndarray, float] = None,
+        AOT: Union[Raster, np.ndarray, float] = None,
+        vapor_gccm: Union[Raster, np.ndarray, float] = None,
+        ozone_cm: Union[Raster, np.ndarray, float] = None,
+        elevation_m: Union[Raster, np.ndarray, float] = None,
+        SZA_deg: Union[Raster, np.ndarray, float] = None,
+        KG_climate: Union[Raster, np.ndarray, int] = None,
+        SWin_Wm2: Union[Raster, np.ndarray, float] = None,
+        geometry: Union[RasterGeometry, shapely.geometry.Point, rt.Point, shapely.geometry.MultiPoint, rt.MultiPoint] = None,
+        time_UTC: datetime = None,
+        day_of_year: Union[Raster, np.ndarray, float] = None,
+        hour_of_day: Union[Raster, np.ndarray, float] = None,
+        GEOS5FP_connection: GEOS5FP = None,
+        NASADEM_connection: NASADEMConnection = None,
+        resampling: str = DEFAULT_RESAMPLING,
+        zero_COT_correction: bool = ZERO_COT_CORRECTION) -> dict:
     """
     Retrieve and prepare all input arrays for FLiESANN inference.
     
