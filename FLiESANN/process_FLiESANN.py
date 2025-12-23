@@ -280,6 +280,8 @@ def FLiESANN(
     # - Low PAR reflectance due to chlorophyll absorption
     # - High NIR reflectance due to leaf cellular structure
     if NDVI is not None:
+        # Determine the shape from albedo array for broadcasting NDVI if needed
+        actual_shape = albedo.shape if hasattr(albedo, 'shape') else None
         NDVI_array = ensure_array(NDVI, actual_shape)
         
         PAR_albedo, NIR_albedo = partition_spectral_albedo_with_NDVI(
