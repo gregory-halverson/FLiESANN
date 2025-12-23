@@ -55,6 +55,16 @@ def retrieve_FLiESANN_GEOS5FP_inputs(
     if GEOS5FP_connection is None:
         GEOS5FP_connection = GEOS5FP()
     
+    # Convert rasters.MultiPoint to shapely.geometry.MultiPoint if needed
+    query_geometry = geometry
+    if isinstance(geometry, rt.MultiPoint):
+        # Extract coordinates from rasters.MultiPoint and create shapely.MultiPoint
+        coords = [(point.x, point.y) for point in geometry.geoms]
+        query_geometry = shapely.geometry.MultiPoint(coords)
+    elif isinstance(geometry, rt.Point):
+        # Convert rasters.Point to shapely.Point
+        query_geometry = shapely.geometry.Point(geometry.x, geometry.y)
+    
     # Retrieve or validate COT
     if zero_COT_correction:
         # Determine shape for zero array
@@ -68,7 +78,7 @@ def retrieve_FLiESANN_GEOS5FP_inputs(
     elif COT is None and geometry is not None and time_UTC is not None:
         COT = GEOS5FP_connection.COT(
             time_UTC=time_UTC,
-            geometry=geometry,
+            geometry=query_geometry,
             resampling=resampling
         )
     
@@ -84,7 +94,7 @@ def retrieve_FLiESANN_GEOS5FP_inputs(
     if AOT is None and geometry is not None and time_UTC is not None:
         AOT = GEOS5FP_connection.AOT(
             time_UTC=time_UTC,
-            geometry=geometry,
+            geometry=query_geometry,
             resampling=resampling
         )
     
@@ -97,7 +107,7 @@ def retrieve_FLiESANN_GEOS5FP_inputs(
     if vapor_gccm is None and geometry is not None and time_UTC is not None:
         vapor_gccm = GEOS5FP_connection.vapor_gccm(
             time_UTC=time_UTC,
-            geometry=geometry,
+            geometry=query_geometry,
             resampling=resampling
         )
     
@@ -110,7 +120,7 @@ def retrieve_FLiESANN_GEOS5FP_inputs(
     if ozone_cm is None and geometry is not None and time_UTC is not None:
         ozone_cm = GEOS5FP_connection.ozone_cm(
             time_UTC=time_UTC,
-            geometry=geometry,
+            geometry=query_geometry,
             resampling=resampling
         )
     
