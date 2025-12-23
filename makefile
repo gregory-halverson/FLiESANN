@@ -69,3 +69,6 @@ generate-static-input-dataset:
 
 generate-FLiESANN-GEOS5FP-inputs:
 	python -c "from FLiESANN.generate_FLiESANN_GEOS5FP_inputs import generate_FLiESANN_GEOS5FP_inputs; generate_FLiESANN_GEOS5FP_inputs()"
+
+generate-input-dataset:
+	python -c "from FLiESANN.generate_input_dataset import generate_input_dataset; generate_input_dataset()"

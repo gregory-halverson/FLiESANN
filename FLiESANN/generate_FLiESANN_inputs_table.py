@@ -2,6 +2,7 @@ from dateutil import parser
 
 import numpy as np
 import pandas as pd
+import rasters as rt
 
 from GEOS5FP import GEOS5FP
 from sentinel_tiles import sentinel_tiles
