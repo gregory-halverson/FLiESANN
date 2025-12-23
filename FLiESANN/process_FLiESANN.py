@@ -17,10 +17,8 @@ from .colors import *
 from .determine_atype import determine_atype
 from .determine_ctype import determine_ctype
 from .run_FLiESANN_inference import run_FLiESANN_inference
-from .retrieve_FLiESANN_GEOS5FP_inputs import retrieve_FLiESANN_GEOS5FP_inputs
-from .retrieve_FLiESANN_static_inputs import retrieve_FLiESANN_static_inputs
+from .retrieve_FLiESANN_inputs import retrieve_FLiESANN_inputs
 from .ensure_array import ensure_array
-from .filter_dataframe_to_location_time_pairs import filter_dataframe_to_location_time_pairs
 from .partition_spectral_albedo_with_NDVI import partition_spectral_albedo_with_NDVI
 
 def FLiESANN(
@@ -123,22 +121,6 @@ def FLiESANN(
     if time_UTC is None and day_of_year is None and hour_of_day is None:
         raise ValueError("no time given between time_UTC, day_of_year, and hour_of_day")
 
-    # Determine shape for array operations - include MultiPoint for vectorized processing
-    if isinstance(geometry, (Raster, np.ndarray)):
-        shape = geometry.shape
-    elif isinstance(geometry, (shapely.geometry.MultiPoint, rt.MultiPoint)):
-        shape = (len(geometry.geoms),) if hasattr(geometry, 'geoms') else (len(geometry),)
-    else:
-        shape = None
-
-    albedo = ensure_array(albedo, shape)
-
-    results["albedo"] = albedo
-    
-    SWin_Wm2 = ensure_array(SWin_Wm2, shape)
-    day_of_year = ensure_array(day_of_year, shape)
-    hour_of_day = ensure_array(hour_of_day, shape)
-
     if SZA_deg is None and geometry is not None:
         SZA_deg = calculate_SZA_from_DOY_and_hour(
             lat=geometry.lat,
@@ -150,105 +132,51 @@ def FLiESANN(
     if SZA_deg is None:
         raise ValueError("solar zenith angle or geometry and time must be given")
 
-    results["SZA_deg"] = SZA_deg
-
-    SZA_deg = ensure_array(SZA_deg, shape)
-
-    # Retrieve static inputs (elevation and climate)
-    static_inputs = retrieve_FLiESANN_static_inputs(
-        elevation_m=elevation_m,
-        KG_climate=KG_climate,
-        geometry=geometry,
-        NASADEM_connection=NASADEM_connection,
-        resampling=resampling
-    )
-    
-    # Extract retrieved values
-    elevation_m = static_inputs["elevation_m"]
-    elevation_km = static_inputs["elevation_km"]
-    KG_climate = static_inputs["KG_climate"]
-    
-    # Store in results
-    results["elevation_m"] = elevation_m
-    results["KG_climate"] = KG_climate
-
-    # Retrieve GEOS-5 FP atmospheric inputs
-    GEOS5FP_inputs = retrieve_FLiESANN_GEOS5FP_inputs(
+    # Retrieve and prepare all input arrays
+    inputs = retrieve_FLiESANN_inputs(
+        albedo=albedo,
         COT=COT,
         AOT=AOT,
         vapor_gccm=vapor_gccm,
         ozone_cm=ozone_cm,
+        elevation_m=elevation_m,
+        SZA_deg=SZA_deg,
+        KG_climate=KG_climate,
+        SWin_Wm2=SWin_Wm2,
         geometry=geometry,
         time_UTC=time_UTC,
+        day_of_year=day_of_year,
+        hour_of_day=hour_of_day,
         GEOS5FP_connection=GEOS5FP_connection,
+        NASADEM_connection=NASADEM_connection,
         resampling=resampling,
         zero_COT_correction=zero_COT_correction
     )
     
-    # Extract retrieved values
-    COT = GEOS5FP_inputs["COT"]
-    AOT = GEOS5FP_inputs["AOT"]
-    vapor_gccm = GEOS5FP_inputs["vapor_gccm"]
-    ozone_cm = GEOS5FP_inputs["ozone_cm"]
+    # Extract prepared inputs
+    albedo = inputs["albedo"]
+    COT = inputs["COT"]
+    AOT = inputs["AOT"]
+    vapor_gccm = inputs["vapor_gccm"]
+    ozone_cm = inputs["ozone_cm"]
+    elevation_m = inputs["elevation_m"]
+    elevation_km = inputs["elevation_km"]
+    KG_climate = inputs["KG_climate"]
+    SZA_deg = inputs["SZA_deg"]
+    SWin_Wm2 = inputs["SWin_Wm2"]
+    day_of_year = inputs["day_of_year"]
+    atype = inputs["atype"]
+    ctype = inputs["ctype"]
     
-    # Convert DataFrames to arrays first (if they are DataFrames)
-    # This is necessary because GEOS5FP returns DataFrames for time-series data
-    # When processing multiple location-time pairs, GEOS5FP returns a DataFrame with
-    # rows for each unique time at each location, creating a Cartesian product.
-    # We need to filter to match only the original location-time pairs.
-    import pandas as pd
-    
-    if isinstance(COT, pd.DataFrame) or (isinstance(COT, np.ndarray) and len(COT.shape) == 2):
-        COT = filter_dataframe_to_location_time_pairs(COT, geometry, time_UTC)
-    if isinstance(AOT, pd.DataFrame) or (isinstance(AOT, np.ndarray) and len(AOT.shape) == 2):
-        AOT = filter_dataframe_to_location_time_pairs(AOT, geometry, time_UTC)
-    if isinstance(vapor_gccm, pd.DataFrame) or (isinstance(vapor_gccm, np.ndarray) and len(vapor_gccm.shape) == 2):
-        vapor_gccm = filter_dataframe_to_location_time_pairs(vapor_gccm, geometry, time_UTC)
-    if isinstance(ozone_cm, pd.DataFrame) or (isinstance(ozone_cm, np.ndarray) and len(ozone_cm.shape) == 2):
-        ozone_cm = filter_dataframe_to_location_time_pairs(ozone_cm, geometry, time_UTC)
-    
-    # Store in results (after DataFrame conversion)
+    # Store key inputs in results
+    results["albedo"] = albedo
+    results["SZA_deg"] = SZA_deg
+    results["elevation_m"] = elevation_m
+    results["KG_climate"] = KG_climate
     results["COT"] = COT
     results["AOT"] = AOT
     results["vapor_gccm"] = vapor_gccm
     results["ozone_cm"] = ozone_cm
-    
-    # Update shape based on actual retrieved data arrays (after DataFrame conversion)
-    # For MultiPoint geometries, use the original shape (number of points)
-    # For raster geometries, use the shape of retrieved data
-    if isinstance(geometry, (shapely.geometry.MultiPoint, rt.MultiPoint)):
-        actual_shape = (len(geometry.geoms),) if hasattr(geometry, 'geoms') else shape
-    elif hasattr(COT, 'shape') and not isinstance(COT, pd.DataFrame):
-        actual_shape = COT.shape
-    elif hasattr(AOT, 'shape') and not isinstance(AOT, pd.DataFrame):
-        actual_shape = AOT.shape
-    elif hasattr(vapor_gccm, 'shape') and not isinstance(vapor_gccm, pd.DataFrame):
-        actual_shape = vapor_gccm.shape
-    elif hasattr(ozone_cm, 'shape') and not isinstance(ozone_cm, pd.DataFrame):
-        actual_shape = ozone_cm.shape
-    else:
-        actual_shape = shape
-    
-    # Ensure arrays have correct shape
-    KG_climate = ensure_array(KG_climate, actual_shape) if not isinstance(KG_climate, int) else KG_climate
-    COT = ensure_array(COT, actual_shape)
-    AOT = ensure_array(AOT, actual_shape)
-    vapor_gccm = ensure_array(vapor_gccm, actual_shape)
-    ozone_cm = ensure_array(ozone_cm, actual_shape)
-    elevation_km = ensure_array(elevation_km, actual_shape)
-    elevation_m = ensure_array(elevation_m, actual_shape)
-    albedo = ensure_array(albedo, actual_shape)
-    SZA_deg = ensure_array(SZA_deg, actual_shape)
-    day_of_year = ensure_array(day_of_year, actual_shape)
-    SWin_Wm2 = ensure_array(SWin_Wm2, actual_shape)
-
-    # determine aerosol/cloud types
-    atype = determine_atype(KG_climate, COT)  # Determine aerosol type
-    ctype = determine_ctype(KG_climate, COT)  # Determine cloud type
-    
-    # Ensure atype and ctype match actual_shape
-    atype = ensure_array(atype, actual_shape)
-    ctype = ensure_array(ctype, actual_shape)
 
     # Run ANN inference to get initial radiative transfer parameters
     prediction_start_time = process_time()
