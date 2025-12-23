@@ -17,112 +17,9 @@ from .colors import *
 from .determine_atype import determine_atype
 from .determine_ctype import determine_ctype
 from .run_FLiESANN_inference import run_FLiESANN_inference
-from .retrieve_FLiESANN_GEOS5FP_inputs import retrieve_FLiESANN_GEOS5FP_inputs
-from .retrieve_FLiESANN_static_inputs import retrieve_FLiESANN_static_inputs
+from .retrieve_FLiESANN_inputs import retrieve_FLiESANN_inputs
 from .ensure_array import ensure_array
-
-def partition_spectral_albedo_with_NDVI(
-        broadband_albedo: np.ndarray,
-        NDVI: np.ndarray,
-        PAR_proportion: np.ndarray,
-        NIR_proportion: np.ndarray) -> tuple:
-    """
-    Partition broadband albedo into PAR and NIR spectral components using NDVI.
-    
-    This function implements an empirical relationship between NDVI and spectral reflectance
-    properties based on peer-reviewed literature. Vegetation exhibits distinct spectral signatures
-    with low reflectance in the visible (PAR) range due to chlorophyll absorption and high
-    reflectance in the NIR range due to leaf cellular structure.
-    
-    References:
-    -----------
-    - Liang, S. (2001). "Narrowband to broadband conversions of land surface albedo I: Algorithms."
-      Remote Sensing of Environment, 76(3), 213-238. DOI: 10.1016/S0034-4257(00)00205-4
-      
-    - Schaaf, C.B., et al. (2002). "First operational BRDF, albedo nadir reflectance products from MODIS."
-      Remote Sensing of Environment, 83(1-2), 135-148. DOI: 10.1016/S0034-4257(02)00091-3
-      
-    - Wang, K., & Liang, S. (2009). "Estimation of daytime net radiation from shortwave radiation
-      measurements and meteorological observations." Journal of Applied Meteorology and Climatology,
-      48(3), 634-643. DOI: 10.1175/2008JAMC1959.1
-      
-    - Pinty, B., et al. (2006). "Simplifying the interaction of land surfaces with radiation for
-      relating remote sensing products to climate models." Journal of Geophysical Research, 111, D02116.
-      DOI: 10.1029/2005JD005952
-    
-    Empirical Relationships:
-    -----------------------
-    For dense vegetation (NDVI > 0.5):
-        - PAR albedo: 0.03-0.10 (typically ~0.05-0.08)
-        - NIR albedo: 0.30-0.50 (typically ~0.35-0.45)
-        - NIR/PAR ratio: ~4-6
-    
-    For sparse vegetation (NDVI 0.2-0.5):
-        - PAR albedo: 0.08-0.15
-        - NIR albedo: 0.15-0.30
-        - NIR/PAR ratio: ~1.5-3
-    
-    For bare soil/desert (NDVI < 0.2):
-        - PAR albedo: 0.15-0.35
-        - NIR albedo: 0.20-0.40
-        - NIR/PAR ratio: ~1.0-1.5
-    
-    Args:
-        broadband_albedo (np.ndarray): Broadband surface albedo (0.3-5.0 μm range)
-        NDVI (np.ndarray): Normalized Difference Vegetation Index (-1 to 1)
-        PAR_proportion (np.ndarray): Fraction of incoming solar radiation in PAR band (0.4-0.7 μm)
-        NIR_proportion (np.ndarray): Fraction of incoming solar radiation in NIR band (0.7-3.0 μm)
-    
-    Returns:
-        tuple: (PAR_albedo, NIR_albedo)
-            - PAR_albedo (np.ndarray): Spectral albedo in photosynthetically active radiation band
-            - NIR_albedo (np.ndarray): Spectral albedo in near-infrared band
-    
-    Notes:
-        The implementation uses a continuous empirical function based on MODIS albedo products
-        (Schaaf et al. 2002) and validated partitioning relationships (Liang 2001, Wang & Liang 2009).
-        The spectral albedos are constrained to satisfy:
-        
-        broadband_albedo ≈ PAR_proportion × PAR_albedo + NIR_proportion × NIR_albedo
-        
-        The NIR/PAR albedo ratio increases with NDVI according to:
-        ratio = 1.0 + 5.0 × NDVI^2  (for NDVI > 0)
-        
-        This quadratic relationship captures the nonlinear increase in NIR reflectance and decrease
-        in PAR reflectance as vegetation density and health increase.
-    """
-    # Clip NDVI to valid range
-    NDVI_clipped = np.clip(NDVI, -1, 1)
-    
-    # Calculate NIR/PAR albedo ratio from NDVI
-    # Based on empirical relationships from Schaaf et al. (2002) and Pinty et al. (2006)
-    # For vegetation, the ratio increases with NDVI as chlorophyll absorption increases in PAR
-    # and cellular scattering increases in NIR
-    
-    # Quadratic relationship captures nonlinear vegetation spectral response
-    # ratio ranges from ~1.0 (NDVI=0, bare soil) to ~6.0 (NDVI=1, dense vegetation)
-    ratio = np.where(
-        NDVI_clipped > 0,
-        1.0 + 5.0 * NDVI_clipped**2,  # Quadratic: ratio from 1 at NDVI=0 to 6 at NDVI=1
-        1.0  # For water, snow, or negative NDVI, assume similar PAR and NIR albedo
-    )
-    
-    # Partition broadband albedo into spectral components
-    # Constraint: broadband_albedo ≈ PAR_proportion × PAR_albedo + NIR_proportion × NIR_albedo
-    # Substituting NIR_albedo = ratio × PAR_albedo:
-    # broadband_albedo = PAR_proportion × PAR_albedo + NIR_proportion × ratio × PAR_albedo
-    # broadband_albedo = PAR_albedo × (PAR_proportion + NIR_proportion × ratio)
-    # Therefore: PAR_albedo = broadband_albedo / (PAR_proportion + NIR_proportion × ratio)
-    
-    denominator = PAR_proportion + NIR_proportion * ratio
-    PAR_albedo = np.where(denominator > 0, broadband_albedo / denominator, broadband_albedo)
-    NIR_albedo = PAR_albedo * ratio
-    
-    # Clip to physical range [0, 1]
-    PAR_albedo = np.clip(PAR_albedo, 0, 1)
-    NIR_albedo = np.clip(NIR_albedo, 0, 1)
-    
-    return PAR_albedo, NIR_albedo
+from .partition_spectral_albedo_with_NDVI import partition_spectral_albedo_with_NDVI
 
 def FLiESANN(
         albedo: Union[Raster, np.ndarray, float],
@@ -224,22 +121,6 @@ def FLiESANN(
     if time_UTC is None and day_of_year is None and hour_of_day is None:
         raise ValueError("no time given between time_UTC, day_of_year, and hour_of_day")
 
-    # Determine shape for array operations - include MultiPoint for vectorized processing
-    if isinstance(geometry, (Raster, np.ndarray)):
-        shape = geometry.shape
-    elif isinstance(geometry, (shapely.geometry.MultiPoint, rt.MultiPoint)):
-        shape = (len(geometry.geoms),) if hasattr(geometry, 'geoms') else (len(geometry),)
-    else:
-        shape = None
-
-    albedo = ensure_array(albedo, shape)
-
-    results["albedo"] = albedo
-    
-    SWin_Wm2 = ensure_array(SWin_Wm2, shape)
-    day_of_year = ensure_array(day_of_year, shape)
-    hour_of_day = ensure_array(hour_of_day, shape)
-
     if SZA_deg is None and geometry is not None:
         SZA_deg = calculate_SZA_from_DOY_and_hour(
             lat=geometry.lat,
@@ -251,166 +132,51 @@ def FLiESANN(
     if SZA_deg is None:
         raise ValueError("solar zenith angle or geometry and time must be given")
 
-    results["SZA_deg"] = SZA_deg
-
-    SZA_deg = ensure_array(SZA_deg, shape)
-
-    # Retrieve static inputs (elevation and climate)
-    static_inputs = retrieve_FLiESANN_static_inputs(
-        elevation_m=elevation_m,
-        KG_climate=KG_climate,
-        geometry=geometry,
-        NASADEM_connection=NASADEM_connection,
-        resampling=resampling
-    )
-    
-    # Extract retrieved values
-    elevation_m = static_inputs["elevation_m"]
-    elevation_km = static_inputs["elevation_km"]
-    KG_climate = static_inputs["KG_climate"]
-    
-    # Store in results
-    results["elevation_m"] = elevation_m
-    results["KG_climate"] = KG_climate
-
-    # Retrieve GEOS-5 FP atmospheric inputs
-    GEOS5FP_inputs = retrieve_FLiESANN_GEOS5FP_inputs(
+    # Retrieve and prepare all input arrays
+    inputs = retrieve_FLiESANN_inputs(
+        albedo=albedo,
         COT=COT,
         AOT=AOT,
         vapor_gccm=vapor_gccm,
         ozone_cm=ozone_cm,
+        elevation_m=elevation_m,
+        SZA_deg=SZA_deg,
+        KG_climate=KG_climate,
+        SWin_Wm2=SWin_Wm2,
         geometry=geometry,
         time_UTC=time_UTC,
+        day_of_year=day_of_year,
+        hour_of_day=hour_of_day,
         GEOS5FP_connection=GEOS5FP_connection,
+        NASADEM_connection=NASADEM_connection,
         resampling=resampling,
         zero_COT_correction=zero_COT_correction
     )
     
-    # Extract retrieved values
-    COT = GEOS5FP_inputs["COT"]
-    AOT = GEOS5FP_inputs["AOT"]
-    vapor_gccm = GEOS5FP_inputs["vapor_gccm"]
-    ozone_cm = GEOS5FP_inputs["ozone_cm"]
+    # Extract prepared inputs
+    albedo = inputs["albedo"]
+    COT = inputs["COT"]
+    AOT = inputs["AOT"]
+    vapor_gccm = inputs["vapor_gccm"]
+    ozone_cm = inputs["ozone_cm"]
+    elevation_m = inputs["elevation_m"]
+    elevation_km = inputs["elevation_km"]
+    KG_climate = inputs["KG_climate"]
+    SZA_deg = inputs["SZA_deg"]
+    SWin_Wm2 = inputs["SWin_Wm2"]
+    day_of_year = inputs["day_of_year"]
+    atype = inputs["atype"]
+    ctype = inputs["ctype"]
     
-    # Convert DataFrames to arrays first (if they are DataFrames)
-    # This is necessary because GEOS5FP returns DataFrames for time-series data
-    # When processing multiple location-time pairs, GEOS5FP returns a DataFrame with
-    # rows for each unique time at each location, creating a Cartesian product.
-    # We need to filter to match only the original location-time pairs.
-    import pandas as pd
-    
-    # Helper function to filter DataFrame to match location-time pairs
-    def filter_dataframe_to_location_time_pairs(df, geometry, time_UTC):
-        """Filter DataFrame or 2D array returned from GEOS5FP to match original location-time pairs"""
-        
-        # Handle DataFrame
-        if isinstance(df, pd.DataFrame):
-            if len(df) == len(geometry.geoms):
-                return df
-                
-            # Extract first column (data values) from DataFrame
-            data_array = df.iloc[:, 0].values.astype(np.float32)
-        # Handle 2D numpy array
-        elif isinstance(df, np.ndarray) and len(df.shape) == 2:
-            if df.shape[0] == (len(geometry.geoms) if hasattr(geometry, 'geoms') else 0):
-                return df
-            
-            # Extract first column if multiple columns
-            if df.shape[1] > 1:
-                data_array = df[:, 0].astype(np.float32)
-            else:
-                data_array = df.flatten().astype(np.float32)
-        # Handle 1D array or scalar
-        else:
-            return df
-        
-        # Get coordinates of input geometry points
-        if isinstance(geometry, (shapely.geometry.MultiPoint, rt.MultiPoint)):
-            input_coords = [(geom.x, geom.y) for geom in geometry.geoms]
-        else:
-            return df
-        
-        # Convert time_UTC to array if it's a single value
-        if not hasattr(time_UTC, '__len__'):
-            time_UTC_array = [time_UTC] * len(input_coords)
-        else:
-            time_UTC_array = time_UTC
-        
-        # For each input location-time pair, find the matching DataFrame row
-        # GEOS5FP processes unique times and returns data for all locations at each time
-        # We need to select only the rows that match our specific location-time pairs
-        
-        # Create a mapping of (lat, lon, time_index) -> row index
-        # The DataFrame contains all locations for each unique time
-        unique_times = sorted(set(pd.to_datetime(time_UTC_array)))
-        time_to_index = {t: i for i, t in enumerate(unique_times)}
-        
-        selected_rows = []
-        for i, (coord, time_val) in enumerate(zip(input_coords, time_UTC_array)):
-            time_val = pd.to_datetime(time_val)
-            time_idx = time_to_index[time_val]
-            # Row index = time_idx * num_locations + location_idx
-            row_idx = time_idx * len(input_coords) + i
-            if row_idx < len(data_array):
-                selected_rows.append(row_idx)
-        
-        if len(selected_rows) == len(input_coords):
-            return data_array[selected_rows].astype(np.float32)
-        else:
-            # Fallback: return all rows if filtering fails
-            return data_array.astype(np.float32)
-    
-    if isinstance(COT, pd.DataFrame) or (isinstance(COT, np.ndarray) and len(COT.shape) == 2):
-        COT = filter_dataframe_to_location_time_pairs(COT, geometry, time_UTC)
-    if isinstance(AOT, pd.DataFrame) or (isinstance(AOT, np.ndarray) and len(AOT.shape) == 2):
-        AOT = filter_dataframe_to_location_time_pairs(AOT, geometry, time_UTC)
-    if isinstance(vapor_gccm, pd.DataFrame) or (isinstance(vapor_gccm, np.ndarray) and len(vapor_gccm.shape) == 2):
-        vapor_gccm = filter_dataframe_to_location_time_pairs(vapor_gccm, geometry, time_UTC)
-    if isinstance(ozone_cm, pd.DataFrame) or (isinstance(ozone_cm, np.ndarray) and len(ozone_cm.shape) == 2):
-        ozone_cm = filter_dataframe_to_location_time_pairs(ozone_cm, geometry, time_UTC)
-    
-    # Store in results (after DataFrame conversion)
+    # Store key inputs in results
+    results["albedo"] = albedo
+    results["SZA_deg"] = SZA_deg
+    results["elevation_m"] = elevation_m
+    results["KG_climate"] = KG_climate
     results["COT"] = COT
     results["AOT"] = AOT
     results["vapor_gccm"] = vapor_gccm
     results["ozone_cm"] = ozone_cm
-    
-    # Update shape based on actual retrieved data arrays (after DataFrame conversion)
-    # For MultiPoint geometries, use the original shape (number of points)
-    # For raster geometries, use the shape of retrieved data
-    if isinstance(geometry, (shapely.geometry.MultiPoint, rt.MultiPoint)):
-        actual_shape = (len(geometry.geoms),) if hasattr(geometry, 'geoms') else shape
-    elif hasattr(COT, 'shape') and not isinstance(COT, pd.DataFrame):
-        actual_shape = COT.shape
-    elif hasattr(AOT, 'shape') and not isinstance(AOT, pd.DataFrame):
-        actual_shape = AOT.shape
-    elif hasattr(vapor_gccm, 'shape') and not isinstance(vapor_gccm, pd.DataFrame):
-        actual_shape = vapor_gccm.shape
-    elif hasattr(ozone_cm, 'shape') and not isinstance(ozone_cm, pd.DataFrame):
-        actual_shape = ozone_cm.shape
-    else:
-        actual_shape = shape
-    
-    # Ensure arrays have correct shape
-    KG_climate = ensure_array(KG_climate, actual_shape) if not isinstance(KG_climate, int) else KG_climate
-    COT = ensure_array(COT, actual_shape)
-    AOT = ensure_array(AOT, actual_shape)
-    vapor_gccm = ensure_array(vapor_gccm, actual_shape)
-    ozone_cm = ensure_array(ozone_cm, actual_shape)
-    elevation_km = ensure_array(elevation_km, actual_shape)
-    elevation_m = ensure_array(elevation_m, actual_shape)
-    albedo = ensure_array(albedo, actual_shape)
-    SZA_deg = ensure_array(SZA_deg, actual_shape)
-    day_of_year = ensure_array(day_of_year, actual_shape)
-    SWin_Wm2 = ensure_array(SWin_Wm2, actual_shape)
-
-    # determine aerosol/cloud types
-    atype = determine_atype(KG_climate, COT)  # Determine aerosol type
-    ctype = determine_ctype(KG_climate, COT)  # Determine cloud type
-    
-    # Ensure atype and ctype match actual_shape
-    atype = ensure_array(atype, actual_shape)
-    ctype = ensure_array(ctype, actual_shape)
 
     # Run ANN inference to get initial radiative transfer parameters
     prediction_start_time = process_time()
@@ -514,6 +280,8 @@ def FLiESANN(
     # - Low PAR reflectance due to chlorophyll absorption
     # - High NIR reflectance due to leaf cellular structure
     if NDVI is not None:
+        # Determine the shape from albedo array for broadcasting NDVI if needed
+        actual_shape = albedo.shape if hasattr(albedo, 'shape') else None
         NDVI_array = ensure_array(NDVI, actual_shape)
         
         PAR_albedo, NIR_albedo = partition_spectral_albedo_with_NDVI(
