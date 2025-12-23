@@ -1,4 +1,4 @@
-# Import necessary libraries
+from typing import Union, List
 import sys
 from pathlib import Path
 
@@ -14,12 +14,24 @@ from FLiESANN import generate_FLiESANN_inputs_table, process_FLiESANN_table
 
 import logging
 
+from FLiESANN import load_ECOv002_calval_FLiESANN_inputs
+
 logger = logging.getLogger(__name__)
 
 # Load the calibration/validation table
-def generate_input_dataset():
-    logger.info("Generating BESS-JPL input dataset from ECOv002 cal/val FLiESANN inputs")
-    inputs_df = load_calval_table()
+def generate_input_dataset(
+        inputs_df: Union[pd.DataFrame, str] = None,
+        regenerate_variables: List[str] = None) -> pd.DataFrame:
+    if regenerate_variables is not None:
+        logger.info(f"Regenerating FLiESANN inputs: {', '.join(regenerate_variables)}")
+        inputs_df = load_ECOv002_calval_FLiESANN_inputs
+
+        for var in regenerate_variables:
+            if var in inputs_df.columns:
+                inputs_df = inputs_df.drop(columns=[var])
+    else:
+        logger.info("Generating BESS-JPL input dataset from ECOv002 cal/val FLiESANN inputs")
+        inputs_df = load_calval_table()
 
     # Ensure `time_UTC` is in datetime format
     inputs_df['time_UTC'] = pd.to_datetime(inputs_df['time_UTC'])
@@ -58,6 +70,8 @@ def generate_input_dataset():
     logger.info(f"Processed {len(outputs_df)} records from the full cal/val dataset")
     logger.info(f"input dataset: {inputs_filename}")
     logger.info(f"output dataset: {outputs_filename}")
+
+    return inputs_df
 
 if __name__ == "__main__":
     generate_input_dataset()
