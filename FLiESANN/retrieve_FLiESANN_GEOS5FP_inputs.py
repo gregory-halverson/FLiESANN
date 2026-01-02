@@ -86,7 +86,7 @@ def retrieve_FLiESANN_GEOS5FP_inputs(
         raise ValueError("cloud optical thickness or geometry and time must be given")
     
     # Constrain COT
-    COT = np.clip(COT, 0, None)  # Ensure COT is non-negative
+    COT = rt.clip(COT, 0, None)  # Ensure COT is non-negative
     COT = rt.where(COT < 0.001, 0, COT)  # Set very small COT values to 0
     results["COT"] = COT
     
