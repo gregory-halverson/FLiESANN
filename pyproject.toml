@@ -16,7 +16,7 @@ classifiers = [
 dependencies = [
     "ECOv002-calval-tables>=1.10.0",
     "ECOv002-CMR",
-    "GEOS5FP>=2.10.0",
+    "GEOS5FP>=2.12.0",
     "keras",
     "koppengeiger",
     "MCD12C1-2019-v006",
