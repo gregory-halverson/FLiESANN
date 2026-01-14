@@ -132,6 +132,11 @@ def generate_FLiESANN_inputs_table(
         if hasattr(values, '__len__') and not isinstance(values, str):
             if len(values) != len(output_df):
                 continue
+            # Extract scalar values from single-element arrays
+            # This prevents pandas from storing array representations as strings
+            if isinstance(values, np.ndarray):
+                # Convert array to list of scalars
+                values = [v.item() if isinstance(v, np.ndarray) and v.size == 1 else v for v in values]
         output_df[key] = values
 
     logger.info("completed generating FLiES input table")

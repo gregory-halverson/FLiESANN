@@ -21,7 +21,8 @@ logger = logging.getLogger(__name__)
 # Load the calibration/validation table
 def generate_input_dataset(
         inputs_df: Union[pd.DataFrame, str] = None,
-        regenerate_variables: List[str] = None) -> pd.DataFrame:
+        regenerate_variables: List[str] = None,
+        max_rows: int = None) -> pd.DataFrame:
     if regenerate_variables is not None:
         logger.info(f"Regenerating FLiESANN inputs: {', '.join(regenerate_variables)}")
         inputs_df = load_ECOv002_calval_FLiESANN_inputs
@@ -32,6 +33,11 @@ def generate_input_dataset(
     else:
         logger.info("Generating BESS-JPL input dataset from ECOv002 cal/val FLiESANN inputs")
         inputs_df = load_calval_table()
+
+    # Limit to subset for testing if specified
+    if max_rows is not None:
+        logger.info(f"Limiting to first {max_rows} rows for testing")
+        inputs_df = inputs_df.head(max_rows)
 
     # Ensure `time_UTC` is in datetime format
     inputs_df['time_UTC'] = pd.to_datetime(inputs_df['time_UTC'])
@@ -74,4 +80,7 @@ def generate_input_dataset(
     return inputs_df
 
 if __name__ == "__main__":
-    generate_input_dataset()
+    import sys
+    # Check if --test flag is provided
+    max_rows = 5 if "--test" in sys.argv else None
+    generate_input_dataset(max_rows=max_rows)
