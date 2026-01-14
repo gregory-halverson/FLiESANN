@@ -6,9 +6,11 @@ from .determine_ctype import determine_ctype
 from .prepare_FLiESANN_inputs import prepare_FLiESANN_inputs
 from .run_FLiESANN_inference import run_FLiESANN_inference
 from .process_FLiESANN import FLiESANN
-from .generate_FLiESANN_inputs_table import generate_FLiES_inputs_table
+from .generate_FLiESANN_inputs_table_deprecated import generate_FLiES_inputs_table
 from .process_FLiESANN_table import process_FLiESANN_table
 from .ECOv002_static_tower_FLiESANN_inputs import load_ECOv002_static_tower_FLiESANN_inputs
 from .ECOv002_calval_FLiESANN_inputs import load_ECOv002_calval_FLiESANN_inputs
 from .ECOv002_calval_FLiESANN_outputs import load_ECOv002_calval_FLiESANN_outputs
 from .verify import verify
+from .retrieve_FLiESANN_GEOS5FP_inputs import retrieve_FLiESANN_GEOS5FP_inputs
+from .generate_FLiESANN_inputs_table import generate_FLiESANN_inputs_table

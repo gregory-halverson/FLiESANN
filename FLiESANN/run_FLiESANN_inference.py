@@ -62,8 +62,6 @@ def run_FLiESANN_inference(
         - The function automatically adjusts the input shape to match the model's expected input dimensions.
         - TensorFlow warnings and logs are suppressed during model loading and inference.
     """
-    elevation_km = elevation_m / 1000.0  # Convert elevation from meters to kilometers
-
     import os
     import warnings
     # Save current TF_CPP_MIN_LOG_LEVEL and TF logger level
@@ -107,6 +105,9 @@ def run_FLiESANN_inference(
         albedo = np.where(nan_mask, 0, albedo)
         elevation_m = np.where(nan_mask, 0, elevation_m)
         SZA = np.where(nan_mask, 0, SZA)
+
+        # Convert elevation from meters to kilometers after all array processing
+        elevation_km = elevation_m / 1000.0
 
         # Prepare inputs for the ANN model
         inputs = prepare_FLiESANN_inputs(

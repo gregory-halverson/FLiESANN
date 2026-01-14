@@ -17,6 +17,9 @@ from .colors import *
 from .determine_atype import determine_atype
 from .determine_ctype import determine_ctype
 from .run_FLiESANN_inference import run_FLiESANN_inference
+from .retrieve_FLiESANN_inputs import retrieve_FLiESANN_inputs
+from .ensure_array import ensure_array
+from .partition_spectral_albedo_with_NDVI import partition_spectral_albedo_with_NDVI
 
 def FLiESANN(
         albedo: Union[Raster, np.ndarray, float],
@@ -28,6 +31,7 @@ def FLiESANN(
         SZA_deg: Union[Raster, np.ndarray, float] = None,
         KG_climate: Union[Raster, np.ndarray, int] = None,
         SWin_Wm2: Union[Raster, np.ndarray, float] = None,
+        NDVI: Union[Raster, np.ndarray, float] = None,
         geometry: Union[RasterGeometry, shapely.geometry.Point, rt.Point, shapely.geometry.MultiPoint, rt.MultiPoint] = None,
         time_UTC: datetime = None,
         day_of_year: Union[Raster, np.ndarray, float] = None,
@@ -48,7 +52,7 @@ def FLiESANN(
     based on various atmospheric and environmental parameters.
 
     Args:
-        albedo (Union[Raster, np.ndarray]): Surface albedo.
+        albedo (Union[Raster, np.ndarray]): Surface broadband albedo (0.3-5.0 μm).
         COT (Union[Raster, np.ndarray], optional): Cloud optical thickness. Defaults to None.
         AOT (Union[Raster, np.ndarray], optional): Aerosol optical thickness. Defaults to None.
         vapor_gccm (Union[Raster, np.ndarray], optional): Water vapor in grams per square centimeter. Defaults to None.
@@ -57,6 +61,9 @@ def FLiESANN(
         SZA (Union[Raster, np.ndarray], optional): Solar zenith angle. Defaults to None.
         KG_climate (Union[Raster, np.ndarray], optional): Köppen-Geiger climate classification. Defaults to None.
         SWin_Wm2 (Union[Raster, np.ndarray], optional): Shortwave incoming solar radiation at the bottom of the atmosphere. Defaults to None.
+        NDVI (Union[Raster, np.ndarray], optional): Normalized Difference Vegetation Index (-1 to 1). When provided, enables
+            spectral partitioning of albedo into PAR and NIR components based on vegetation properties (Liang 2001,
+            Schaaf et al. 2002). If None, spectral albedos are assumed equal to broadband albedo. Defaults to None.
         geometry (RasterGeometry, optional): RasterGeometry object defining the spatial extent and resolution. Defaults to None.
         time_UTC (datetime, optional): UTC time for the calculation. Defaults to None.
         day_of_year (Union[Raster, np.ndarray], optional): Day of the year. Defaults to None.
@@ -73,6 +80,7 @@ def FLiESANN(
         dict: A dictionary containing the calculated radiative transfer components as Raster objects or np.ndarrays, including:
             - SWin_Wm2: Shortwave incoming solar radiation at the bottom of the atmosphere.
             - SWin_TOA_Wm2: Shortwave incoming solar radiation at the top of the atmosphere.
+            - SWout_Wm2: Shortwave outgoing (reflected) solar radiation.
             - UV_Wm2: Ultraviolet radiation.
             - PAR_Wm2: Photosynthetically active radiation (visible).
             - NIR_Wm2: Near-infrared radiation.
@@ -80,6 +88,12 @@ def FLiESANN(
             - NIR_diffuse_Wm2: Diffuse near-infrared radiation.
             - PAR_direct_Wm2: Direct visible radiation.
             - NIR_direct_Wm2: Direct near-infrared radiation.
+            - PAR_reflected_Wm2: Reflected photosynthetically active radiation.
+            - NIR_reflected_Wm2: Reflected near-infrared radiation.
+            - PAR_albedo: PAR spectral albedo. If NDVI provided, calculated using vegetation-specific partitioning
+              (Liang 2001, Schaaf et al. 2002); otherwise assumes uniform spectral reflectance.
+            - NIR_albedo: NIR spectral albedo. If NDVI provided, calculated using vegetation-specific partitioning;
+              otherwise assumes uniform spectral reflectance.
             - atmospheric_transmittance: Total atmospheric transmittance.
             - UV_proportion: Proportion of UV radiation.
             - PAR_proportion: Proportion of visible radiation.
@@ -87,35 +101,12 @@ def FLiESANN(
             - UV_diffuse_fraction: Diffuse fraction of UV radiation.
             - PAR_diffuse_fraction: Diffuse fraction of visible radiation.
             - NIR_diffuse_fraction: Diffuse fraction of near-infrared radiation.
+            - NDVI: (only if provided as input) Normalized Difference Vegetation Index.
 
     Raises:
         ValueError: If required time or geometry parameters are not provided.
     """
     results = {}
-
-    def ensure_array(value, shape=None):
-        """Ensure the input is an array, converting scalar values if necessary."""
-        if isinstance(value, (int, float)):
-            return np.full(shape, value, dtype=np.float32) if shape else np.array(value, dtype=np.float32)
-        elif value is None:
-            return None
-        elif isinstance(value, np.ndarray):
-            # Convert object arrays with None values to float arrays with NaN
-            if value.dtype == object:
-                # Replace None with NaN and convert to float32
-                value_copy = value.copy()
-                value_copy[value_copy == None] = np.nan
-                return value_copy.astype(np.float32)
-            else:
-                return value.astype(np.float32)
-        else:
-            # For other types (like lists), convert to array and then ensure float32
-            arr = np.array(value)
-            if arr.dtype == object:
-                arr[arr == None] = np.nan
-                return arr.astype(np.float32)
-            else:
-                return arr.astype(np.float32)
 
     if geometry is not None and not isinstance(geometry, RasterGeometry) and not isinstance(geometry, (shapely.geometry.Point, rt.Point, shapely.geometry.MultiPoint, rt.MultiPoint)):
         raise TypeError(f"geometry must be a RasterGeometry, Point, MultiPoint or None, not {type(geometry)}")
@@ -130,27 +121,6 @@ def FLiESANN(
     if time_UTC is None and day_of_year is None and hour_of_day is None:
         raise ValueError("no time given between time_UTC, day_of_year, and hour_of_day")
 
-    if GEOS5FP_connection is None:
-        GEOS5FP_connection = GEOS5FP()
-
-    ## FIXME need to fetch default values for parameters: COT, AOT, vapor_gccm, ozone_cm, elevation_km, SZA, KG_climate 
-
-    # Determine shape for array operations - include MultiPoint for vectorized processing
-    if isinstance(geometry, (Raster, np.ndarray)):
-        shape = geometry.shape
-    elif isinstance(geometry, (shapely.geometry.MultiPoint, rt.MultiPoint)):
-        shape = (len(geometry.geoms),) if hasattr(geometry, 'geoms') else (len(geometry),)
-    else:
-        shape = None
-
-    albedo = ensure_array(albedo, shape)
-
-    results["albedo"] = albedo
-    
-    SWin_Wm2 = ensure_array(SWin_Wm2, shape)
-    day_of_year = ensure_array(day_of_year, shape)
-    hour_of_day = ensure_array(hour_of_day, shape)
-
     if SZA_deg is None and geometry is not None:
         SZA_deg = calculate_SZA_from_DOY_and_hour(
             lat=geometry.lat,
@@ -162,101 +132,56 @@ def FLiESANN(
     if SZA_deg is None:
         raise ValueError("solar zenith angle or geometry and time must be given")
 
+    # Retrieve and prepare all input arrays
+    inputs = retrieve_FLiESANN_inputs(
+        albedo=albedo,
+        COT=COT,
+        AOT=AOT,
+        vapor_gccm=vapor_gccm,
+        ozone_cm=ozone_cm,
+        elevation_m=elevation_m,
+        SZA_deg=SZA_deg,
+        KG_climate=KG_climate,
+        SWin_Wm2=SWin_Wm2,
+        geometry=geometry,
+        time_UTC=time_UTC,
+        day_of_year=day_of_year,
+        hour_of_day=hour_of_day,
+        GEOS5FP_connection=GEOS5FP_connection,
+        NASADEM_connection=NASADEM_connection,
+        resampling=resampling,
+        zero_COT_correction=zero_COT_correction
+    )
+    
+    # Extract prepared inputs
+    albedo = inputs["albedo"]
+    COT = inputs["COT"]
+    AOT = inputs["AOT"]
+    vapor_gccm = inputs["vapor_gccm"]
+    ozone_cm = inputs["ozone_cm"]
+    elevation_m = inputs["elevation_m"]
+    elevation_km = inputs["elevation_km"]
+    KG_climate = inputs["KG_climate"]
+    SZA_deg = inputs["SZA_deg"]
+    SWin_Wm2 = inputs["SWin_Wm2"]
+    day_of_year = inputs["day_of_year"]
+    atype = inputs["atype"]
+    ctype = inputs["ctype"]
+    
+    # Store key inputs in results
+    results["albedo"] = albedo
     results["SZA_deg"] = SZA_deg
-
-    SZA_deg = ensure_array(SZA_deg, shape)
-
-    if KG_climate is None and geometry is not None:
-        KG_climate = load_koppen_geiger(geometry=geometry)
-
-    if KG_climate is None:
-        raise ValueError("Koppen Geieger climate classification or geometry must be given")
-
-    results["KG_climate"] = KG_climate
-
-    KG_climate = ensure_array(KG_climate, shape) if not isinstance(KG_climate, int) else KG_climate
-
-    if zero_COT_correction:
-        COT = np.zeros(albedo.shape, dtype=np.float32)
-    elif COT is None and geometry is not None and time_UTC is not None:
-        COT = GEOS5FP_connection.COT(
-            time_UTC=time_UTC,
-            geometry=geometry,
-            resampling=resampling
-        )
-    
-    if COT is None:
-        raise ValueError("cloud optical thickness or geometry and time must be given")
-
-    results["COT"] = COT
-
-    COT = ensure_array(COT, shape)
-    
-    if AOT is None and geometry is not None and time_UTC is not None:
-        AOT = GEOS5FP_connection.AOT(
-            time_UTC=time_UTC,
-            geometry=geometry,
-            resampling=resampling
-        )
-
-    if AOT is None:
-        raise ValueError("aerosol optical thickness or geometry and time must be given")
-
-    results["AOT"] = AOT
-
-    AOT = ensure_array(AOT, shape)
-
-    if vapor_gccm is None and geometry is not None and time_UTC is not None:
-        vapor_gccm = GEOS5FP_connection.vapor_gccm(
-            time_UTC=time_UTC,
-            geometry=geometry,
-            resampling=resampling
-        )
-
-    if vapor_gccm is None:
-        raise ValueError("water vapor or geometry and time must be given")
-
-    results["vapor_gccm"] = vapor_gccm
-
-    vapor_gccm = ensure_array(vapor_gccm, shape)
-
-    if ozone_cm is None and geometry is not None and time_UTC is not None:
-        ozone_cm = GEOS5FP_connection.ozone_cm(
-            time_UTC=time_UTC,
-            geometry=geometry,
-            resampling=resampling
-        )
-
-    if ozone_cm is None:
-        raise ValueError("ozone concentration or geometry and time must be given")
-
-    results["ozone_cm"] = ozone_cm
-
-    ozone_cm = ensure_array(ozone_cm, shape)
-
-    if elevation_m is not None:
-        elevation_km = elevation_m / 1000.0
-
-    if elevation_km is None and geometry is not None:
-        elevation_km = NASADEM.elevation_km(geometry=geometry)
-
-    if elevation_km is None:
-        raise ValueError("elevation or geometry must be given")
-
     results["elevation_m"] = elevation_m
-
-    elevation_km = ensure_array(elevation_km, shape)
-
-    # Preprocess COT and determine aerosol/cloud types
-    COT = np.clip(COT, 0, None)  # Ensure COT is non-negative
-    COT = rt.where(COT < 0.001, 0, COT)  # Set very small COT values to 0
-    atype = determine_atype(KG_climate, COT)  # Determine aerosol type
-    ctype = determine_ctype(KG_climate, COT)  # Determine cloud type
+    results["KG_climate"] = KG_climate
+    results["COT"] = COT
+    results["AOT"] = AOT
+    results["vapor_gccm"] = vapor_gccm
+    results["ozone_cm"] = ozone_cm
 
     # Run ANN inference to get initial radiative transfer parameters
     prediction_start_time = process_time()
     
-    inference_results = run_FLiESANN_inference(
+    FLiESANN_inference_results = run_FLiESANN_inference(
         atype=atype,
         ctype=ctype,
         COT=COT,
@@ -271,10 +196,11 @@ def FLiESANN(
         split_atypes_ctypes=split_atypes_ctypes
     )
 
-    results.update(inference_results)
+    results.update(FLiESANN_inference_results)
 
     # Record the end time for performance monitoring
     prediction_end_time = process_time()
+    
     # Calculate total time taken for the ANN inference in seconds
     prediction_duration = prediction_end_time - prediction_start_time
 
@@ -344,6 +270,34 @@ def FLiESANN(
     # from the total NIR radiation (NIR_Wm2). The np.clip function ensures the value remains within the range [0, NIR_Wm2]. [previously: NIRdir, NIR_direct_Wm2]
     NIR_direct_Wm2 = np.clip(NIR_Wm2 - NIR_diffuse_Wm2, 0, NIR_Wm2)
 
+    # Calculate upwelling (reflected) shortwave radiation in W/m² using broadband albedo
+    # This represents the total solar radiation reflected back from the surface
+    SWout_Wm2 = SWin_Wm2 * albedo
+
+    # Partition spectral albedos using NDVI-based method (only if NDVI is provided)
+    # Use NDVI-based spectral partitioning (Liang 2001, Schaaf et al. 2002)
+    # This accounts for vegetation's distinct spectral signature:
+    # - Low PAR reflectance due to chlorophyll absorption
+    # - High NIR reflectance due to leaf cellular structure
+    if NDVI is not None:
+        # Determine the shape from albedo array for broadcasting NDVI if needed
+        actual_shape = albedo.shape if hasattr(albedo, 'shape') else None
+        NDVI_array = ensure_array(NDVI, actual_shape)
+        
+        PAR_albedo, NIR_albedo = partition_spectral_albedo_with_NDVI(
+            broadband_albedo=albedo,
+            NDVI=NDVI_array,
+            PAR_proportion=PAR_proportion,
+            NIR_proportion=NIR_proportion
+        )
+        
+        # Calculate reflected radiation using spectral albedos
+        PAR_reflected_Wm2 = PAR_Wm2 * PAR_albedo
+        NIR_reflected_Wm2 = NIR_Wm2 * NIR_albedo
+        
+        # Store NDVI in results
+        results["NDVI"] = NDVI
+
     if isinstance(geometry, RasterGeometry):
         SWin_Wm2 = rt.Raster(SWin_Wm2, geometry=geometry)
         SWin_TOA_Wm2 = rt.Raster(SWin_TOA_Wm2, geometry=geometry)
@@ -354,30 +308,47 @@ def FLiESANN(
         NIR_diffuse_Wm2 = rt.Raster(NIR_diffuse_Wm2, geometry=geometry)
         PAR_direct_Wm2 = rt.Raster(PAR_direct_Wm2, geometry=geometry)
         NIR_direct_Wm2 = rt.Raster(NIR_direct_Wm2, geometry=geometry)
+        SWout_Wm2 = rt.Raster(SWout_Wm2, geometry=geometry)
+        
+        if NDVI is not None:
+            PAR_reflected_Wm2 = rt.Raster(PAR_reflected_Wm2, geometry=geometry)
+            NIR_reflected_Wm2 = rt.Raster(NIR_reflected_Wm2, geometry=geometry)
+            PAR_albedo = rt.Raster(PAR_albedo, geometry=geometry)
+            NIR_albedo = rt.Raster(NIR_albedo, geometry=geometry)
 
     if isinstance(UV_Wm2, Raster):
         UV_Wm2.cmap = UV_CMAP
 
     # Update the results dictionary with new items instead of replacing it
+    # Update the results dictionary with new items instead of replacing it
     results.update({
         "SWin_Wm2": SWin_Wm2,
         "SWin_TOA_Wm2": SWin_TOA_Wm2,
+        "SWout_Wm2": SWout_Wm2,
         "UV_Wm2": UV_Wm2,
         "PAR_Wm2": PAR_Wm2,
         "NIR_Wm2": NIR_Wm2,
+        "atmospheric_transmittance": atmospheric_transmittance,
+        "UV_proportion": UV_proportion,
+        "UV_diffuse_fraction": UV_diffuse_fraction,
+        "PAR_proportion": PAR_proportion,
+        "NIR_proportion": NIR_proportion,
         "PAR_diffuse_Wm2": PAR_diffuse_Wm2,
         "NIR_diffuse_Wm2": NIR_diffuse_Wm2,
         "PAR_direct_Wm2": PAR_direct_Wm2,
         "NIR_direct_Wm2": NIR_direct_Wm2,
-        "atmospheric_transmittance": atmospheric_transmittance,
-        "UV_proportion": UV_proportion,
-        "PAR_proportion": PAR_proportion,
-        "NIR_proportion": NIR_proportion,
-        "UV_diffuse_fraction": UV_diffuse_fraction,
         "PAR_diffuse_fraction": PAR_diffuse_fraction,
         "NIR_diffuse_fraction": NIR_diffuse_fraction
     })
-
+    
+    # Add NDVI-derived spectral albedo outputs only if NDVI was provided
+    if NDVI is not None:
+        results.update({
+            "PAR_reflected_Wm2": PAR_reflected_Wm2,
+            "NIR_reflected_Wm2": NIR_reflected_Wm2,
+            "PAR_albedo": PAR_albedo,
+            "NIR_albedo": NIR_albedo
+        })
     # Convert results to Raster objects if raster geometry is given
     if isinstance(geometry, RasterGeometry):
         for key in results.keys():

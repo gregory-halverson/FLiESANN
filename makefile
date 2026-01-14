@@ -63,3 +63,16 @@ verify:
 
 generate-output-dataset:
 	python -c "from FLiESANN.generate_output_dataset import main; main()"
+
+generate-static-input-dataset:
+	python -c "from FLiESANN.generate_static_input_dataset import generate_static_input_dataset; generate_static_input_dataset()"
+
+generate-FLiESANN-GEOS5FP-inputs:
+	python -c "from FLiESANN.generate_FLiESANN_GEOS5FP_inputs import generate_FLiESANN_GEOS5FP_inputs; generate_FLiESANN_GEOS5FP_inputs()"
+
+generate-input-dataset:
+ifdef VARS
+	python -c "from FLiESANN.generate_input_dataset import generate_input_dataset; generate_input_dataset(regenerate_variables='$(VARS)'.split())"
+else
+	python -c "from FLiESANN.generate_input_dataset import generate_input_dataset; generate_input_dataset()"
+endif
