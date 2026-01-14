@@ -1,7 +1,7 @@
 import pandas as pd
 from check_distribution import check_distribution
 
-input_filename = "FLiESANN/ECOv002-cal-val-FLiESANN-outputs.csv"
+input_filename = "FLiESANN/ECOv002-cal-val-FLiESANN-inputs.csv"
 
 input_df = pd.read_csv(input_filename)
 
