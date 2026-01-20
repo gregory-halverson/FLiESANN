@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 def process_FLiESANN_table(
         input_df: DataFrame,
         GEOS5FP_connection: GEOS5FP = None,
-        NASADEM_connection: NASADEMConnection = None) -> DataFrame:
+        NASADEM_connection: NASADEMConnection = None,
+        offline_mode: bool = False) -> DataFrame:
     """
     Processes a DataFrame of FLiES inputs and returns a DataFrame with FLiES outputs.
     
@@ -95,7 +96,7 @@ def process_FLiESANN_table(
         raise KeyError("Input DataFrame must contain either 'geometry' or both 'lat' and 'lon' columns.")
     
     # Convert time column to datetime
-    times_UTC = pd.to_datetime(input_df.time_UTC)
+    times_UTC = pd.to_datetime(input_df.time_UTC, format='mixed')
     
     logger.info(f"processing {len(input_df)} rows")
 
@@ -122,7 +123,8 @@ def process_FLiESANN_table(
         KG_climate=get_column_or_none(input_df, "KG_climate", "KG"),
         NDVI=get_column_or_none(input_df, "NDVI"),
         GEOS5FP_connection=GEOS5FP_connection,
-        NASADEM_connection=NASADEM_connection
+        NASADEM_connection=NASADEM_connection,
+        offline_mode=offline_mode
     )
 
     # Add results to the output DataFrame
