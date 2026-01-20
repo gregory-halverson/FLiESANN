@@ -36,7 +36,8 @@ def retrieve_FLiESANN_inputs(
         GEOS5FP_connection: GEOS5FP = None,
         NASADEM_connection: NASADEMConnection = None,
         resampling: str = DEFAULT_RESAMPLING,
-        zero_COT_correction: bool = ZERO_COT_CORRECTION) -> dict:
+        zero_COT_correction: bool = ZERO_COT_CORRECTION,
+        offline_mode: bool = False) -> dict:
     """
     Retrieve and prepare all input arrays for FLiESANN inference.
     
@@ -121,7 +122,8 @@ def retrieve_FLiESANN_inputs(
         time_UTC=time_UTC,
         GEOS5FP_connection=GEOS5FP_connection,
         resampling=resampling,
-        zero_COT_correction=zero_COT_correction
+        zero_COT_correction=zero_COT_correction,
+        offline_mode=offline_mode
     )
     
     # Extract retrieved values

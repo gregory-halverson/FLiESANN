@@ -42,7 +42,8 @@ def FLiESANN(
         ANN_model=None,
         model_filename: str = MODEL_FILENAME,
         split_atypes_ctypes: bool = SPLIT_ATYPES_CTYPES,
-        zero_COT_correction: bool = ZERO_COT_CORRECTION) -> dict:
+        zero_COT_correction: bool = ZERO_COT_CORRECTION,
+        offline_mode: bool = False) -> dict:
     """
     Processes Forest Light Environmental Simulator (FLiES) calculations using an 
     artificial neural network (ANN) emulator.
@@ -150,7 +151,8 @@ def FLiESANN(
         GEOS5FP_connection=GEOS5FP_connection,
         NASADEM_connection=NASADEM_connection,
         resampling=resampling,
-        zero_COT_correction=zero_COT_correction
+        zero_COT_correction=zero_COT_correction,
+        offline_mode=offline_mode
     )
     
     # Extract prepared inputs
